@@ -3,7 +3,7 @@ title: 服务器开启FTP
 date: 2024-10-22 11:29:08 +0800
 categories: [other, server]
 tags: [Server, FTP]
-description: 
+description: Windows Server 2022 开启 FTP
 ---
 ## 服务器开启 FTP
 - 操作系统：Windows
