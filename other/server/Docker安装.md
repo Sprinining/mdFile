@@ -127,6 +127,3 @@ $ docker info
  Registry Mirrors:
   https://docker.mirrors.ustc.edu.cn/
 ```
-
-
-
