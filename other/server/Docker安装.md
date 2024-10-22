@@ -101,3 +101,32 @@ root@spring:~# docker -v
 Docker version 27.3.1, build ce12230
 ```
 
+### 镜像加速
+
+对于 Ubuntu16.04+、Debian8+、CentOS7 系统，在 `/etc/docker/daemon.json` 中写入如下内容（如果文件不存在新建该文件）：
+
+```json
+{
+    "registry-mirrors": [
+        "https://docker.mirrors.ustc.edu.cn/"
+    ]
+}
+```
+
+之后重新启动服务：
+
+```shell
+$ sudo systemctl daemon-reload
+$ sudo systemctl restart docker
+```
+
+执行 **docker info**，如果从结果中看到了如下内容，说明配置成功：
+
+```shell
+$ docker info
+ Registry Mirrors:
+  https://docker.mirrors.ustc.edu.cn/
+```
+
+
+
