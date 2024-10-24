@@ -3,7 +3,7 @@ title: Docker快速使用
 date: 2024-10-22 11:17:34 +0800
 categories: [other, docker]
 tags: [Docker]
-description: 镜像操作、容器操作、保存以及分享镜像
+description: 镜像操作、容器操作、保存以及分享镜像、目录挂载、卷映射、自定义网络
 ---
 ## Docker快速使用
 
@@ -312,3 +312,211 @@ de60cfb9b744: Preparing
 ```
 
 然后就能在 dockerhub 中看见推送上去的镜像。最好制作一个 `Tag` 为 `latest` 的镜像，这样不带 `Tag` 的 `pull` 就会默认下载这个最新的镜像。
+
+### 目录挂载
+
+1. 将**本地目录**挂载到**容器内的目录**。
+
+```shell
+root@spring:~# docker run -d -p 82:80 -v /app/nghtml:/usr/share/nginx/html --name ng nginx
+```
+
+这里的 `-v /app/nghtml:/usr/share/nginx/html` 选项是一个**绑定挂载**，其含义是：
+
+- `/app/nghtml` 是**本地主机**上的目录（服务器上的）。
+- `/usr/share/nginx/html` 是**容器内部**的目录。
+
+挂载的效果是：容器内部的 `/usr/share/nginx/html` 目录将映射到主机的 `/app/nghtml` 目录（没有会自动新建）。也就是说，**当你在容器内修改 `/usr/share/nginx/html` 中的文件时，这些变化会反映在主机的 `/app/nghtml` 中，反之亦然**。
+
+2. 文件覆盖。
+
+使用 `-v` 进行挂载时，挂载的本地目录会覆盖容器内的相应目录。如果本地目录是空的，容器内原本的文件就会被隐藏或看不到。此时容器内的 `/usr/share/nginx/html` 目录是空的，没有 `index.html` 文件。
+
+```shell
+root@spring:~# curl localhost:82
+<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+<hr><center>nginx/1.27.2</center>
+</body>
+</html>
+root@spring:~# docker exec -it ng /bin/bash
+root@8dfbb8b56a75:/# cd /usr/share/nginx/html/
+root@8dfbb8b56a75:/usr/share/nginx/html# ls
+root@8dfbb8b56a75:/usr/share/nginx/html# ls
+```
+
+若此时在本地目录 `/app/nghtml/` 下新建文件 `index.html` 并输入内容，此时 `localhost:82` 网页就会有内容。并且容器内部的目录 `/usr/share/nginx/html` 下也会出现这个文件。
+
+```shell
+root@spring:~# cd /app/nghtml/
+root@spring:/app/nghtml# ls
+root@spring:/app/nghtml# echo "haha" > index.html
+root@spring:/app/nghtml# curl localhost:82
+haha
+```
+
+如果将容器删除，容器内的数据会丢失，本地的 `/app/nghtml/` 仍会保存，下次再创建容器且把本地的这个目录挂载到容器中后，再打开网页，会直接显示 `haha`。
+
+### 卷映射
+
+1. 映射到卷 `nghtml`。
+
+```shell
+root@spring:~# docker run -d -p 82:80 -v nghtml:/usr/share/nginx/html --name ng nginx
+```
+
+**Docker 会创建一个卷**，并将该卷挂载到容器内的 `/usr/share/nginx/html` 目录中。卷的数据默认保存在 Docker 管理的空间中，不会直接与本地主机的文件系统关联。`nghtml` 在主机的 `/var/lib/docker/volumes/` 目录下。
+
+```shell
+root@spring:/var/lib/docker/volumes/nghtml/_data# ls
+50x.html  index.html
+```
+
+使用 `docker volume inspect nghtml` 可以查看卷的内容
+
+```shell
+root@spring:~# docker volume inspect nghtml
+[
+    {
+        "CreatedAt": "2024-10-24T10:14:57+08:00",
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/var/lib/docker/volumes/nghtml/_data",
+        "Name": "nghtml",
+        "Options": null,
+        "Scope": "local"
+    }
+]
+```
+
+2. 与目录挂载的区别
+
+| 特性         | 目录挂载 (Bind Mount)              | 卷映射 (Volume)                              |
+| ------------ | ---------------------------------- | -------------------------------------------- |
+| 数据存储位置 | 宿主机上的指定路径                 | Docker 自动管理的存储区域                    |
+| 管理方式     | 由宿主机文件系统控制               | 由 Docker 自动管理                           |
+| 性能         | 性能取决于宿主机文件系统           | 高效，专为容器设计，性能较好                 |
+| 适用场景     | 开发环境，调试时需要实时同步       | 数据持久化、生产环境、多容器数据共享         |
+| 移植性       | 依赖宿主机路径，不利于跨平台和环境 | 不依赖宿主机路径，容易跨平台和多环境使用     |
+| 宿主机访问   | 宿主机可以直接读写挂载目录         | 宿主机无法直接访问，需通过 Docker 操作卷     |
+| 数据安全性   | 容器销毁时，宿主机上的文件不受影响 | 容器销毁时，卷仍保留数据                     |
+| 多容器共享   | 不能直接共享，需挂载相同宿主机路径 | 可以轻松实现多个容器挂载同一卷，实现数据共享 |
+
+如果需要灵活、直接与宿主机目录交互，使用目录挂载；如果需要更好的数据管理和持久化方案，使用卷映射。
+
+3. 删除卷
+
+```shell
+root@spring:~# docker volume ls
+DRIVER    VOLUME NAME
+local     nghtml
+root@spring:~# docker rm -f ng 
+ng
+root@spring:~# docker volume rm nghtml 
+nghtml
+```
+
+- `docker volume ls` ：查看所有的卷。
+- `docker volume rm <volume_name>`：删除指定卷。
+- `docker volume prune`：强制删除未使用的卷（即没有被任何容器使用的卷），加上 `-f` 参数可以不用确认操作，直接删除。
+- `docker volume rm volume1 volume2 volume3` ：删除多个卷。
+- 卷被删除后，存储在该卷中的数据也会永久丢失，无法恢复。如果卷仍然在被运行中的容器使用，需要先停止并删除使用该卷的容器，或者使用 `docker rm -f` 强制删除容器后再删除卷。
+
+### 自定义网络
+
+1. 通过外部网络访问另一个容器的端口。
+
+先启动两个容器：`ng1`，`ng2`，映射到主机的端口分别为 `4100`，`4200`。
+
+```shell
+root@spring:~# docker run -d -p 4100:80 --name ng1 nginx
+e796fcd9626976257704ecea3b0bfd8b3ae9b64f166f3c610e54b27bc28ccd56
+root@spring:~# docker run -d -p 4200:80 --name ng2 nginx
+160c2f68e0c9fe905056206190ef1c60783d9f68e459bfcbf41cdef1a600ae7f
+```
+
+然后进入容器 `ng1` 内部，访问容器 `ng2` 的页面。确保安全组中已经开放了 4100 的端口，不如访问不了。
+
+```shell
+root@spring:~# curl 服务器的公网ip:4100
+```
+
+2. docker 为每个容器分配唯一 ip，使用`容器 ip + 容器端口`可以互相访问
+
+每一个容器启动的时候都会加入 docker 的默认网络 `docker0`，在安装 docker 的时候就会有这个网络。使用 `ip a` 可以看到这个 `docker0` 网卡。
+
+```shell
+root@spring:~# ip a
+3: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
+    link/ether 02:42:a5:46:07:fc brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::42:a5ff:fe46:7fc/64 scope link 
+       valid_lft forever preferred_lft forever
+```
+
+可以看见 ip 地址为 `172.17.0.1`。使用 `docker inspect ng1` 也能查到网络信息（等价于 `docker container inspect ng1`）。
+
+```shell
+root@spring:~# docker inspect ng1
+root@spring:~# docker inspect ng2
+```
+
+查到 `ng1` 的为：`"Gateway": "172.17.0.1", "IPAddress": "172.17.0.4"`
+
+查到 `ng2` 的为：`"Gateway": "172.17.0.1", "IPAddress": "172.17.0.5"`
+
+进入容器 `ng1` 通过内部网络访问容器 `ng2` 的端口：
+
+```shell
+root@spring:~# docker exec -it ng1 /bin/bash
+root@e796fcd96269:/# curl 127.17.0.5:80
+```
+
+注意：访问的是容器 `ng2` 的 `80` 端口，而不是映射到主机并对外暴露的 `4200` 端口。
+
+3. 创建自定义网络，容器名就是稳定域名。
+
+使用 `docker network create mynet` 创建一个名叫 `mynet` 的自定义网络。之前的 `docker0` 就是 `bridge`，`docker0` 默认不支持主机域名。
+
+```shell
+root@spring:~# docker network create mynet
+1db9050c72fcf19637089db491aafbd12da2295f0669517a559cd49dc23358d8
+root@spring:~# docker network ls
+NETWORK ID     NAME                         DRIVER    SCOPE
+ba608dc5d5d9   bridge                       bridge    local
+051c14b34e86   host                         host      local
+1db9050c72fc   mynet                        bridge    local
+444b1b1ee344   none                         null      local
+```
+
+使用 `--network mynet` 参数，让容器加入自定义网络 `mynet`：
+
+```shell
+root@spring:~# docker run -d -p 4100:80 --name ng1 --network mynet nginx
+25afdae56ff2b225d0e9328540f96a8bfd94eff3a396421f9771a4a1d16a2413
+root@spring:~# docker run -d -p 4200:80 --name ng2 --network mynet nginx
+a37ffb9606a096ef081dd9e2403fe047ef7017097983beda5de46caf3cf40de2
+```
+
+现在就能使用域名进行访问：
+
+```shell
+root@spring:~# docker exec -it ng1 /bin/bash
+root@25afdae56ff2:/# curl ng2:80
+```
+
+4. 删除自定义网络
+
+- `docker network ls`：列出所有现有的 Docker 网络，找到想要删除的自定义网络。
+
+- `docker network inspect <network_name>`：查看是否有容器在使用。
+
+- `docker network disconnect <network_name> <container_name_or_id>`：如果不想删除容器，只是想将它们从自定义网络中移除，可以使用这个命令。
+
+- `docker network rm <network_name>`：删除指定网络。
+- `docker network prune`：删除所有未使用的网络，加上 `-f` 参数可以跳过确认，直接删除。
+
+- **默认网络**（如 `bridge`、`host` 和 `none`）是 Docker 自动创建的，不能被删除。
