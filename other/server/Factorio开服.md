@@ -1,10 +1,262 @@
+---
+title: Factorio开服
+date: 2024-11-03 10:31:24 +0800
+categories: [other, server]
+tags: [Server, Linux, Docker, Factorio]
+description: 在服务器上开服和通过 Docker 开服
+---
 ## Factorio开服
 
 - [官方教程](https://wiki.factorio.com/Multiplayer/zh#%E4%B8%93%E7%94%A8/Headless%E6%9C%8D%E5%8A%A1%E5%99%A8)
 
-### 配置文件
+### 专用/Headless服务器
 
-#### map-gen-settings.example.json
+从 Factorio 版本 0.12.0 开始，可以使用 `--start-server` 命令行选项启动专用（或Headless）服务器。可以运行 `factorio --help` 来获取  Factorio 接受的所有命令行参数的列表。
+
+在 Headless 模式下：
+
+- 图形界面未初始化。（启动速度更快，内存使用量更少，适用于 Headless 服务器）
+- 在键入命令后，游戏立即开始，并按照给出的参数（存档名）加载存档。
+- 服务器在游戏中没有角色。
+- 在没有玩家连接的情况下，游戏会暂停。（尽管可以使用 server-settings.json 中的 no-auto-pause 选项覆盖此选项）
+- 退出时保存游戏。（并正常执行自动保存）
+
+从0.13开始，`--start-server` 命令后需要加上存档文件的路径。
+
+需要在启动服务器之前创建保存文件，因为专用服务器需要提供保存文件。这可以使用 `--create` 命令行参数轻松完成。例如：
+
+```shell
+./bin/x64/factorio --create ./saves/my-save.zip       # 这将建立一个新存档，就像在游戏中点击新游戏那样
+./bin/x64/factorio --start-server ./saves/my-save.zip # 这将启动游戏服务端，并且会使用上一行中创建的存档
+```
+
+有几个JSON配置文件可供factorio用来更改服务器和地图设置：
+
+- 在 `map-gen-settings` 中设置地图生成器使用的参数，例如宽度和高度，矿块的频率和大小等。（在0.13中添加）
+- 编辑 `map-settings` 来控制污染扩散，扩散和演变等等。（0.15版本中增加）
+- `server-setting` 将多个命令行选项合并到单个文件中（在0.14.12中添加）
+
+data子目录中包含每个参数的示例文件。
+
+创建新地图时，必须将 `--map-gen-settings` 和 `--map-settings` 选项与 `--create` 选项一起使用。例如：
+
+```shell
+./bin/x64/factorio --create saves/my-save.zip --map-gen-settings my-map-gen-settings.json --map-settings my-map-settings.json
+```
+
+启动 factorio 服务器需要指定 `server-settings.json` 文件的位置。默认情况下，这是在 factorio 数据文件夹中。例如，要使用最新保存的地图启动 factorio，可以运行：
+
+```shell
+./bin/x64/factorio --start-server-load-latest --server-settings ./data/server-settings.json
+```
+
+要在同一台计算机上启动服务器和客户端，需要使用以下启动选项启动客户端：
+
+```shell
+--no-log-rotation
+```
+
+### 在服务器上直接开服
+
+#### 开放端口
+
+服务器安全组加一条记录，开放 34197 的 UDP端口，防火墙也要开放这个端口（如果使用的是 ufw 的话）：
+
+```shell
+sudo ufw allow 34197/udp
+```
+
+#### 下载服务器文件并解压
+
+```shell
+# 下载
+wget https://factorio.com/get-download/stable/headless/linux64 -O factorio_headless.tar.xz
+# 解压
+tar -xvf factorio_headless.tar.xz
+```
+
+#### 配置文件
+
+从 `./data` 目录下复制三个配置文件并改名：`map-gen-settings.json`、`map-settings.json`、`server-settings.json`，主要修改的是 `server-settings.json`。白名单如果需要，配置 `server-whitelist.json`
+
+```shell
+# 拷贝文件并改名，放到 ./config 文件夹下
+cp ./data/map-gen-settings.example.json  ./config/map-gen-settings.json
+cp ./data/map-settings.example.json  ./config/map-settings.json
+cp ./data/server-settings.example.json  ./config/server-settings.json
+```
+
+修改 `server-settings.json`，具体含义看最下面的配置文件说明：
+
+```json
+{
+  "name": "服务器名称",
+  "description": "服务器描述",
+  "tags": [
+    "game",
+    "no mod"
+  ],
+  "max_players": 4,
+  "visibility": {
+    "public": true,
+    "lan": false
+  }
+  "username": "factorio 官网账号的用户名，不是 steam 的",
+  "password": "",
+  "token": "factorio 官网上自己账号信息里的 token，填了这个，上面的 username 和 password 就不用填了",
+  "game_password": "",
+  "require_user_verification": true,
+  "max_upload_in_kilobytes_per_second": 0,
+  "max_upload_slots": 5,
+  "minimum_latency_in_ticks": 0,
+  "max_heartbeats_per_second": 60,
+  "ignore_player_limit_for_returning_players": false,
+  "allow_commands": "admins-only",
+  "autosave_interval": 10,
+  "autosave_slots": 5,
+  "afk_autokick_interval": 0,
+  "auto_pause": true,
+  "auto_pause_when_players_connect": false,
+  "only_admins_can_pause_the_game": true,
+  "autosave_only_on_server": true,
+  "non_blocking_saving": false,
+  "minimum_segment_size": 25,
+  "minimum_segment_size_peer_count": 20,
+  "maximum_segment_size": 100,
+  "maximum_segment_size_peer_count": 10
+}
+```
+
+#### 新建存档
+
+```shell
+./bin/x64/factorio --create saves/my-save.zip --map-gen-settings ./config/map-gen-settings.json --map-settings ./config/map-settings.json
+```
+
+- 编辑 `./mods/mod-list.json`，修改 mod，确保本地和服务器使用的 mod 一致，比如只启用最基本的模组：
+
+```json
+{
+  "mods": 
+  [
+    
+    {
+      "name": "base",
+      "enabled": true
+    },
+    
+    {
+      "name": "elevated-rails",
+      "enabled": false
+    },
+    
+    {
+      "name": "quality",
+      "enabled": false
+    },
+    
+    {
+      "name": "space-age",
+      "enabled": false
+    }
+  ]
+}
+```
+
+#### 开启服务器
+
+```shell
+./bin/x64/factorio --start-server-load-latest --server-settings ./config/server-settings.json
+```
+
+#### 后台启动（可选）
+
+为避免关闭终端后关闭服务器，可以使用 `tmux` 工具将 Factorio 服务器放到后台：
+
+1. 安装 `tmux`
+
+如果还未安装 `tmux`，可以使用以下命令进行安装：
+
+```shell
+sudo apt install tmux
+```
+
+2. 启动一个新的 `tmux` 会话
+
+在终端中启动一个新的 `tmux` 会话，并给会话起一个名字，比如 `factorio`：
+
+```shell
+tmux new -s factorio
+```
+
+这会打开一个新的 `tmux` 会话窗口。
+
+3. 启动 Factorio 服务器
+
+在 `tmux` 会话中，启动 Factorio 服务器：
+
+```shell
+./bin/x64/factorio --start-server-load-latest --server-settings ./config/server-settings.json
+```
+
+服务器启动后，它将在该 `tmux` 会话中运行。
+
+4. 将 `tmux` 会话放到后台
+
+按下以下组合键将 `tmux` 会话放到后台：
+
+```shell
+Ctrl + B，然后松开，再按 D
+```
+
+Factorio 服务器会继续在后台运行，此时可以关闭终端或继续其他操作。
+
+5. 恢复 `tmux` 会话
+
+如果想返回到 Factorio 服务器的 `tmux` 会话，可以使用以下命令：
+
+```shell
+tmux attach -t factorio
+```
+
+6. 关闭 `tmux` 会话
+
+要关闭 Factorio 服务器并退出 `tmux` 会话，可以在 `tmux` 会话中按 `Ctrl + C` 停止服务器，然后输入以下命令退出：
+
+```shell
+exit
+```
+
+这样可以彻底关闭 `tmux` 会话。
+
+#### 配置管理员权限
+
+必须在**factorio的根目录**下新建 `server-adminlist.json`：
+
+```shell
+touch ./server-adminlist.json
+```
+
+修改内容：
+
+```json
+[
+    "PlayerName1",
+    "PlayerName2"
+]
+```
+
+重启服务器后生效。
+
+### 使用 Docker 开服
+
+- [Docker 文档](https://hub.docker.com/r/factoriotools/factorio)
+
+### 配置文件说明
+
+`factorio/data` 子目录中包含每个参数的示例文件，使用时需要新建，去掉 example。
+
+- `map-gen-settings.example.json`
 
 设置地图生成的参数。该文件定义了地图生成时的一些特性和规则，允许玩家自定义地图的结构和资源分布。
 
@@ -106,7 +358,7 @@
 }
 ```
 
-#### map-settings.example.json
+- `map-settings.example.json`
 
 用于设置游戏地图的生成和特性。玩家可以根据自己的需求修改此文件，以定制新创建地图的具体设置。
 
@@ -343,7 +595,7 @@
 }
 ```
 
-#### server-settings.example.json
+- `server-settings.example.json`
 
 包含了一些服务器的设置选项，玩家可以根据自己的需求进行调整，以便定制服务器的行为和特性。
 
@@ -452,29 +704,14 @@
 }
 ```
 
-#### server-whitelist.example.json
+- `server-whitelist.example.json`
 
 用于设置 Factorio 服务器的白名单。白名单是一种安全机制，允许只有特定的玩家（通常通过他们的用户名或ID）连接到服务器，而其他玩家则被拒绝访问。
 
 ```json
 [
-  "Rseding91",
-  "Oxyd"
+  "N1ce2cu",
+  "用户的 factorio 账号昵称"
 ]
 ```
 
-上述四个文件需要新建，去掉 example
-
-- 新建存档
-
-```shell
-./bin/x64/factorio --create saves/my-save.zip --map-gen-settings map-gen-settings.json --map-settings map-settings.json
-```
-
-- 修改 `factorio/mods/mod-list.json`，启动 mod
-
-- 开启服务器
-
-```shell
-./bin/x64/factorio --start-server-load-latest --server-settings ./server-settings.json
-```
