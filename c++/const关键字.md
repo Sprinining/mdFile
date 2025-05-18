@@ -206,4 +206,42 @@ int arr2[m]; // ✅ OK
 
 `const` 是运行时常量，表示在运行时赋值的变量。
 
-`constexpr` 是编译时常量，表示在编译时必须已知的常量。
+```c++
+int input;
+cin >> input;
+const int x = input; // ❌ 不是编译期常量
+int arr[x];          // ❌ 错，数组长度必须是常量表达式（C++ 标准）
+// 这里 x 虽然是 const，但它的值直到程序运行时才知道 —— 所以它是运行时只读变量，不是编译期常量。
+```
+
+`constexpr` 是编译时常量，表示在编译时必须已知的常量。在编译期就会被求值并替换进代码中 —— 如果条件允许。
+
+```c++
+constexpr int square(int n) {
+    return n * n;
+}
+
+int arr[square(5)];  // 等价于 int arr[25];
+// 编译器会在编译期间直接计算出 square(5) == 25；
+// 最终生成代码时，根本没有 square() 的函数调用，直接用结果。
+```
+
+能被 `constexpr` 替换的前提：
+
+- 所有参数和上下文都是编译期已知的；
+
+- 表达式没有运行时依赖；
+
+- `constexpr` 函数的语法必须受限（不能有 `new`、`malloc`、IO、异常、虚函数等操作）。
+
+反例：
+
+```c++
+constexpr int get_val(bool b) {
+    return b ? 1 : 2;
+}
+
+int x = get_val(cin.get() == 'a');  // ❌ 运行期参数 ⇒ 不能替换
+// 此时虽然 get_val() 是 constexpr，但因为参数取决于运行时输入，编译器不会在编译期替换，会按普通函数处理。
+```
+
