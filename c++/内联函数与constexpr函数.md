@@ -61,6 +61,14 @@ int main() {
 4. **不能递归内联**：
    - 编译器通常不会对递归函数内联
 
+| 情况                                 | 是否建议内联                   |
+| ------------------------------------ | ------------------------------ |
+| 函数体非常短（如 1~3 行）            | ✅ 适合                         |
+| 函数体较复杂（有循环/逻辑分支）      | ❌ 不建议                       |
+| 函数频繁被调用                       | ✅ 适合                         |
+| 函数调用频率低/编译时间敏感          | ❌ 不建议                       |
+| 需要跨文件调用（函数放 .cpp 文件中） | ❌ 不能内联（必须头文件中定义） |
+
 #### ODR（One Definition Rule）
 
 C++ 要求 **每个函数或变量在整个程序中只能有一个定义**（即 ODR：One Definition Rule）。如果你把函数定义（**非声明！**）放在头文件中，并在多个 `.cpp` 文件中 `#include` 了这个头文件，就相当于在多个地方都定义了一遍同一个函数。
@@ -76,6 +84,54 @@ error: multiple definition of 'xxx'; first defined here...
 > “这个函数即使在多个编译单元中定义了，只要定义内容相同，是可以共存的。”
 
 这是 C++ 标准中特意为支持头文件中定义函数而设计的机制。
+
+#### 类与内联函数
+
+类中定义的函数默认是内联的，示例：
+
+```cpp
+class MyClass {
+public:
+    int getX() const { return x; }  // 在类定义中写了函数体，就是内联函数
+private:
+    int x = 10;
+};
+```
+
+这个 `getX()` 函数是一个**内联成员函数**，等价于写在类外并加上 `inline`：
+
+```cpp
+class MyClass {
+public:
+    int getX() const;
+private:
+    int x = 10;
+};
+
+inline int MyClass::getX() const {
+    return x;
+}
+```
+
+ 三种写法都可以让函数成为“内联函数”：
+
+```cpp
+// 写法一：类内定义（自动内联）
+class A {
+    int get() const { return 1; }
+};
+
+// 写法二：类外定义 + inline
+class B {
+    int get() const;
+};
+inline int B::get() const { return 2; }
+
+// 写法三：类内声明 + inline 关键字（可选）
+class C {
+    inline int get() const { return 3; } // inline 是可加可不加
+};
+```
 
 ### constexpr 函数
 
