@@ -37,7 +37,7 @@ public class Main {
             ---
     */
     public static final String FILE_PATH = "C:\\Users\\Spring\\Downloads\\algorithm";
-    public static final String DATE_PATTERN = "yyyy-MM-dd hh:mm:ss";
+    public static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
     // md 文档中所有图片路径的父路径
     public static final String MEDIA_SUB_PATH = "/assets/media/pictures/";
 
