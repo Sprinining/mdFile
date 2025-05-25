@@ -77,11 +77,43 @@ Derived* d = dynamic_cast<Derived*>(b); // 安全转换
 用于添加或去除 `const`、`volatile` 属性。
 
 ```cpp
+// 这里 new int(10) 创建了一个 非 const 的 int，值是 10
+// 但是用一个 const int* 指针来接收它，意思是承诺不通过 p 来修改它的值
 const int* p = new int(10);
-int* q = const_cast<int*>(p); // 去掉 const 限定
+// 使用 const_cast 去掉了 p 的 const 限定，使得 q 成为了可以修改的普通指针
+int* q = const_cast<int*>(p);
 ```
 
-> 注意：去掉 const 后修改值是未定义行为，除非原本就不是 const。
+- `const int* p` 只是**承诺不改**，但指向的其实是一个**原本可以修改的对象**（`new int(10)` 创建的是普通 `int`）。
+
+- 也就是说，虽然**声明时用了 `const` 修饰指针类型**，但没有真正地创建一个 `const` 对象，所以这时候能用 `*q = 20` 来修改值。
+
+使用 `const_cast` 修改数据，必须**保证原始对象不是 const 的**：
+
+```cpp
+#include <iostream>
+
+int main() {
+    const int a = 10;               // 声明一个 const int 类型的变量 a，值为 10，不允许修改
+    const int* p = &a;              // 声明一个指向 const int 的指针 p，指向 a，表示不能通过 p 修改 a
+
+    int* q = const_cast<int*>(p);   // 使用 const_cast 去掉指针的 const 限定符，将 p 转换为 int* 类型
+                                    // 注意：虽然语法上合法，但如果修改的是一个真正的 const 对象（比如 a），则行为是未定义的！
+
+    *q = 20;                        // 尝试通过 q 修改 a 的值为 20 —— 未定义行为！
+                                    // 在某些编译器中，这可能会导致程序崩溃、数据不变、或其他不可预测的结果
+
+    std::cout << "a = " << a << std::endl;  // 输出 a 的值。由于 a 是 const，编译器可能将它优化为常量值输出，结果仍为 10
+
+    return 0;
+}
+```
+
+- `const_cast` 只能用来修改那些**原本不是 const，但被“临时”视为 const** 的对象。
+
+- 修改原本就声明为 `const` 的对象（如 `const int a = 10`）的值是**未定义行为**（Undefined Behavior）。
+
+- 这种修改行为可能在某些平台或编译器下看似“成功”，但那是偶然的，不可依赖。
 
 #### 4. `reinterpret_cast<T>(expression)`(重新解释转换)
 
