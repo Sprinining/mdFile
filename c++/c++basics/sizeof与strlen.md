@@ -134,3 +134,40 @@ std::cout << strlen(str2);  // 输出5
 
 > 例如：`sizeof(arr) / sizeof(arr[0])` 才是数组长度（元素个数）
 
+### 数组作为函数参数会退化为指针
+
+```cpp
+#include <iostream>
+using namespace std;
+
+void printSize(int arr[]) {
+    cout << "sizeof(arr) in function = " << sizeof(arr) << endl;
+}
+
+int main() {
+    int arr[10];
+
+    cout << "sizeof(arr) in main = " << sizeof(arr) << endl;  // 输出 40（10 * 4）
+    printSize(arr);  // 实际上传递的是 int*
+}
+```
+
+输出：
+
+```txt
+sizeof(arr) in main = 40
+sizeof(arr) in function = 8 （在64位系统）或 4（32位系统）
+```
+
+- 在 `main()` 里，`arr` 是一个真正的数组，大小是 `10 * sizeof(int)`，所以是 40。
+- 在 `printSize()` 里，`arr` 是 **函数参数**，它退化成了一个 `int*`，`sizeof(arr)` 实际上就是 `sizeof(int*)`，在 64 位系统上是 8。
+
+函数签名中三种写法等价：
+
+```cpp
+void func(int arr[]);
+void func(int arr[10]);
+void func(int* arr);
+```
+
+这三种在函数参数中是等价的，**都会退化为指针 `int\*`**。
