@@ -135,3 +135,71 @@ try {
 > RAII 是一种 C++ 中非常重要的资源管理策略，它利用对象生命周期（构造/析构）自动处理资源，避免手动 `new/delete`，从而防止内存泄漏、文件未关闭、死锁等问题。
 
 **RAII + 异常机制 = 安全 + 简洁 + 高效** 是 C++ 最强大的组合之一。
+
+### C++析构函数可以抛出异常吗
+
+在 **C++ 中，不建议也几乎不允许析构函数抛出异常**。虽然语言标准并没有完全禁止析构函数中抛出异常，但这么做会非常危险，主要原因如下：
+
+#### 1. **析构函数抛异常可能导致程序崩溃**
+
+如果一个对象在栈展开（stack unwinding）过程中被销毁（即已经在处理另一个异常），**又有析构函数抛出异常**，那么 **C++ 会调用 `std::terminate()`，导致程序崩溃**。
+
+> 栈展开就是异常抛出时，C++ 自动调用所有已经构造的对象的析构函数，从而逐层清理函数调用栈。
+>
+> **展开的过程 = 自动清理资源（通过调用析构函数）**
+>
+> - 谁先构造，谁后析构（后进先出，LIFO）
+> - 每层函数退出时，所有局部对象都会被销毁
+
+```cpp
+#include <iostream>
+#include <stdexcept>
+
+class A {
+public:
+    ~A() {
+        std::cout << "A::~A()" << std::endl;
+        throw std::runtime_error("Error in destructor");
+    }
+};
+
+void test() {
+    A a;
+    throw std::runtime_error("Original exception");
+}
+
+int main() {
+    try {
+        test();
+    } catch (const std::exception& e) {
+        std::cout << "Caught: " << e.what() << std::endl;
+    }
+}
+```
+
+**输出：**
+
+```txt
+A::~A()
+terminate called after throwing an instance of 'std::runtime_error'
+```
+
+程序终止，`catch` 根本没来得及处理。
+
+#### 2. **正确的做法：捕获并处理析构函数中的异常**
+
+如果析构函数中确实可能发生异常，**必须捕获并在内部处理**，**绝不能让异常传播出析构函数**：
+
+```cpp
+class A {
+public:
+    ~A() {
+        try {
+            // 可能抛异常的代码
+        } catch (const std::exception& e) {
+            // 记录日志或采取补救措施
+        }
+    }
+};
+```
+
