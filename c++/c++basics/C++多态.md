@@ -208,3 +208,187 @@ public:
 
 - **构造函数内部**是**可以语法上调用虚函数的**
 -  **但这不是多态调用（即不通过 vtable），而是静态绑定 —— 调用当前类的版本**，而不是派生类的重写版本。
+
+### 为什么 C++ 基类析构函数需要是虚函数
+
+在 C++ 中，**基类的析构函数需要声明为虚函数（`virtual`）**，是为了确保在通过**基类指针删除派生类对象时**，可以正确地调用派生类的析构函数，从而避免**资源泄漏**和**未定义行为**。
+
+#### 问题背景举例
+
+```cpp
+class Base {
+public:
+    ~Base() {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Derived : public Base {
+public:
+    ~Derived() {
+        std::cout << "Derived destructor\n";
+    }
+};
+
+int main() {
+    Base* ptr = new Derived();
+    delete ptr; // 只调用 Base 的析构函数，Derived 的析构函数不会被调用！
+    return 0;
+}
+```
+
+输出：
+
+```txt
+Base destructor
+```
+
+此时 **`Derived` 的析构函数没有被调用**，如果它管理了动态资源（如 new 出来的指针、文件句柄等），就会造成**资源泄漏**。
+
+#### 正确写法：将基类析构函数声明为 `virtual`
+
+``` cpp
+class Base {
+public:
+    virtual ~Base() {
+        std::cout << "Base destructor\n";
+    }
+};
+
+class Derived : public Base {
+public:
+    ~Derived() {
+        std::cout << "Derived destructor\n";
+    }
+};
+
+int main() {
+    Base* ptr = new Derived();
+    delete ptr; // 会先调用 Derived 析构，再调用 Base 析构
+    return 0;
+}
+```
+
+输出：
+
+```txt
+Derived destructor
+Base destructor
+```
+
+当通过**基类指针删除派生类对象**时：
+
+- 若基类析构函数**不是虚函数**，只会调用基类析构函数；
+- 若基类析构函数**是虚函数**，会根据实际对象类型**触发虚函数机制（vtable）**，从而**调用完整的析构过程（先派生后基类）**。
+
+#### 何时不需要虚析构函数
+
+- 如果一个类 **永远不会被继承**，或者 **不会通过基类指针删除派生类对象**，则不需要虚析构函数。
+
+- 否则，只要有可能通过 `Base*` 或 `Base&` 管理 `Derived` 对象，就必须让 `Base::~Base()` 是虚的。
+
+### 为什么C++的成员模板函数不能是virtual的
+
+#### 虚函数机制是基于“已知签名”的
+
+虚函数机制的本质是：
+
+- 编译期建立**虚函数表（vtable）**；
+- 每个类的 vtable 中存储的是**固定函数签名**（即参数类型、返回值都完全确定）的函数指针；
+- 运行时通过虚函数表实现动态派发。
+
+#### 模板函数的签名在编译期才确定
+
+成员模板函数本质上是：
+
+- **泛型代码**；
+- 每次调用都会根据**调用时传入的模板参数**生成**不同版本的函数**（即实例化）；
+
+> 换句话说，**模板函数不是真正的函数，而是函数生成器**，它不具备唯一的签名，只有在使用时才实例化成具体函数。
+
+#### 虚函数表不支持“无限多的未知函数签名”
+
+由于虚函数要求在编译时就将函数指针放进 vtable，但：
+
+- 模板函数的数量是**无限种可能**（`foo<T>()`, `foo<U>()`, ...）；
+- 编译器根本无法预知你将来会用哪些模板参数，也就**无法为每一个模板函数实例预留 vtable 插槽**。
+
+因此，**无法把一个模板成员函数放进虚函数表，也就不能是 `virtual` 的**。
+
+#### 替代方案：使用类型擦除（如 `std::function` 或虚函数 + 非模板接口）
+
+如果需要**类似模板+虚函数的行为**，有以下常用方式：
+
+1. 类型擦除（如策略模式）
+
+类型擦除是一种技术，用于将不同类型的对象“抽象成统一的接口类型”，从而在不知道具体类型的前提下调用它们。
+
+```cpp
+// 抽象基类，定义统一的接口
+class Base {
+public:
+    // 纯虚函数，派生类必须实现，用于调用某个函数逻辑
+    virtual void call(int x) = 0;
+
+    // 虚析构函数，确保通过基类指针删除派生类对象时能正确析构
+    virtual ~Base() {}
+};
+
+// 模板派生类，用于将任意可调用对象（函数、lambda、函数对象等）适配为 Base 接口
+template<typename Func>
+class Derived : public Base {
+    Func f; // 保存传入的可调用对象
+
+public:
+    // 构造函数，接收任意可调用对象并保存
+    Derived(Func func) : f(func) {}
+
+    // 重写虚函数，将调用转发给保存的函数对象 f
+    void call(int x) override {
+        f(x); // 实际执行传入的函数
+    }
+};
+
+#include <iostream>
+#include <vector>
+#include <memory>
+
+int main() {
+    std::vector<std::unique_ptr<Base>> vec;
+
+    // 添加 lambda 到容器中
+    vec.push_back(std::make_unique<Derived>([](int x) {
+        std::cout << "lambda 1: " << x << std::endl;
+    }));
+
+    vec.push_back(std::make_unique<Derived>([](int x) {
+        std::cout << "lambda 2: " << x * 2 << std::endl;
+    }));
+
+    // 统一调用接口
+    for (auto& obj : vec) {
+        obj->call(10); // 多态调用，实际执行对应的 lambda
+    }
+
+    return 0;
+}
+```
+
+2. 使用模板类而非模板函数 + 虚函数接口
+
+```cpp
+struct Interface {
+    virtual void process() = 0;
+    virtual ~Interface() = default;
+};
+
+template <typename T>
+class Impl : public Interface {
+    T data;
+public:
+    Impl(T d) : data(d) {}
+    void process() override {
+        // 使用 data 做些操作
+    }
+};
+```
