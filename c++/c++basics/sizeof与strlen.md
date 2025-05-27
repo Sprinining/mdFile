@@ -171,3 +171,49 @@ void func(int* arr);
 ```
 
 这三种在函数参数中是等价的，**都会退化为指针 `int\*`**。
+
+### sizeof 一个空类
+
+在 C++ 中，即使一个类是空的（即没有成员变量和成员函数），`sizeof` 这个空类的结果也不会是 `0`，而是 **1**。这是 C++ 语言标准所规定的行为。
+
+原因：
+
+C++ 需要确保每个对象在内存中有一个唯一的地址。如果 `sizeof(Empty)` 是 `0`，那么创建多个该类的对象时，它们可能会被分配到相同的地址，从而违反了对象地址唯一性的要求。
+
+示例代码：
+
+```cpp
+#include <iostream>
+
+class Empty {};
+
+int main() {
+    std::cout << sizeof(Empty) << std::endl;  // 输出 1
+    return 0;
+}
+```
+
+特别说明：
+
+- 编译器会为空类分配至少 1 字节空间，以确保不同对象的地址不同。
+- 如果你继承一个空类，情况可能会有所不同（尤其涉及 **空基类优化 EBO, Empty Base Optimization**），例如：
+
+```cpp
+class Empty {};
+
+class Derived : public Empty {
+    int x;
+};
+
+int main() {
+    std::cout << sizeof(Derived) << std::endl; // 通常输出 4，而不是 5
+}
+```
+
+在这个例子中，`Derived` 继承自 `Empty`，但 `Empty` 并没有占用额外空间，说明编译器应用了 **EBO**。
+
+总结：
+
+- `sizeof(空类)` == 1，这是标准规定的。
+- 主要目的是为了让对象地址唯一。
+- 编译器可能在继承时优化掉空基类占用的空间。
