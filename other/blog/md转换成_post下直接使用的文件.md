@@ -72,7 +72,7 @@ public class Main {
                 "tags: " + "[" +
                 "]\n" +
                 "media_subpath: " + MEDIA_SUB_PATH + "\n" +
-                "description: " +
+                "description: \"\"" +
                 "\n" +
                 "---\n";
         insertFileHeader(inserted.getBytes(StandardCharsets.UTF_8), file);
