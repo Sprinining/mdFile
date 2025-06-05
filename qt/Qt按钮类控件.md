@@ -1,5 +1,20 @@
 ## Qt 按钮类控件
 
+### 继承关系图
+
+```css
+QObject/
+├── QWidget/
+│   ├── QAbstractButton/
+│   │   ├── QPushButton
+│   │   ├── QRadioButton
+│   │   ├── QCheckBox
+│   │   ├── QToolButton
+│   │   └── QCommandLinkButton
+│   └── QDialogButtonBox
+└── QButtonGroup
+```
+
 ### QAbstractButton
 
 `QAbstractButton` 是 Qt 中所有按钮类的基类，提供了按钮的通用接口和功能。它本身是一个抽象类，不能直接实例化，而是被具体的按钮类（如 `QPushButton`、`QRadioButton`、`QCheckBox`、`QCommandLinkButton` 等）继承，实现具体的按钮表现和行为。
