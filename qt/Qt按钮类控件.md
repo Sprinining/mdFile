@@ -186,6 +186,11 @@ QT_END_NAMESPACE
 |          | `void released()`                            | 被释放时发出                            |
 |          | `void toggled(bool checked)`                 | 勾选状态切换时发出                      |
 
+- `clicked(bool)` 信号只在**用户点击按钮**时触发。
+
+- 使用 `setDown()`、`setChecked()`、`toggle()` 这些函数通过程序改变按钮状态时，**不会触发 `clicked(bool)` 信号**。
+- `toggled(bool)` 信号无论是**用户点击**还是**程序调用上述函数改变状态**，都会被触发。
+
 ### QButtonGroup
 
 `QButtonGroup` 是 Qt 中用于将多个按钮（通常是单选按钮 `QRadioButton` 或复选按钮 `QCheckBox`）组织到一个逻辑组中的类。它不负责按钮的显示，而是管理按钮的状态和信号，方便处理多个按钮之间的互斥或批量操作。
