@@ -80,9 +80,30 @@ out.setCodec("UTF-8");  // Qt5 及以前
 
 在 Qt6 中，编码设置方式略有不同（通过 `setEncoding()`）。
 
-#### 操作子
+#### 格式操作符（操纵器）
 
-
+| 操作子 / 方法                                                | 说明                                    | 示例                                                         |
+| ------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------ |
+| **进制相关**                                                 |                                         |                                                              |
+| `Qt::dec`                                                    | 十进制（默认）                          | `ts << Qt::dec << 255;`                                      |
+| `Qt::oct`                                                    | 八进制                                  | `ts << Qt::oct << 255;`                                      |
+| `Qt::hex`                                                    | 十六进制                                | `ts << Qt::hex << 255;`                                      |
+| **符号显示**                                                 |                                         |                                                              |
+| `QTextStream::showbase`                                      | 显示进制前缀（如 `0x`、`0`）            | `ts.setIntegerBase(16); ts.setFieldAlignment(QTextStream::AlignLeft); ts << 255;` 需结合显示前缀 |
+| `QTextStream::showpos`                                       | 显示正号（+）                           | `ts << QTextStream::showpos << 123;`                         |
+| **浮点数格式**                                               |                                         |                                                              |
+| `QTextStream::fixed`                                         | 固定小数点格式                          | `ts << QTextStream::fixed << 3.14;`                          |
+| `QTextStream::scientific`                                    | 科学计数法格式                          | `ts << QTextStream::scientific << 3.14;`                     |
+| `QTextStream::realNumberNotation()`                          | 设置浮点数格式（fixed/scientific/auto） | `ts.setRealNumberNotation(QTextStream::FixedNotation);`      |
+| `QTextStream::setRealNumberPrecision(int)`                   | 设置小数位数                            | `ts.setRealNumberPrecision(2);`                              |
+| **域宽和对齐**                                               |                                         |                                                              |
+| `QTextStream::setFieldWidth(int)`                            | 设置输出域宽                            | `ts.setFieldWidth(10);`                                      |
+| `QTextStream::setFieldAlignment(QTextStream::FieldAlignment)` | 设置域对齐方式（左/右/中心）            | `ts.setFieldAlignment(QTextStream::AlignRight);`             |
+| **填充字符**                                                 |                                         |                                                              |
+| `QTextStream::setPadChar(QChar)`                             | 设置填充字符（默认空格）                | `ts.setPadChar('0');`                                        |
+| **其他**                                                     |                                         |                                                              |
+| `QTextStream::reset()`                                       | 重置流状态和格式                        | `ts.reset();`                                                |
+| `QTextStream::skipWhiteSpace()`                              | 跳过输入流的空白字符                    | `ts.skipWhiteSpace();`                                       |
 
 ### 示例：读写文本
 
