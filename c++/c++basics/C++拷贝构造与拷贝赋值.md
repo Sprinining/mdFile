@@ -1,4 +1,4 @@
-## C++ 拷贝构造与拷贝赋值
+##  C++ 拷贝构造与拷贝赋值
 
 ### 拷贝构造函数
 
@@ -607,3 +607,158 @@ T obj = expr;
 | `T obj = T(123);`                         | ❌ 否，可能被优化       | 编译器常常应用 **复制省略（copy elision）**     |
 | `T obj = funcReturningT();`               | ❌ 否，可能被优化       | 如果启用了 NRVO（返回值优化），拷贝构造会被省略 |
 | `T obj = {123};`（列表初始化）            | ❌ 否，使用花括号构造   | 这是**拷贝列表初始化**，不调用拷贝构造          |
+
+### 交换操作
+
+#### `swap` 函数应该调用 `swap`，而不是 `std::swap`
+
+```cpp
+#include <iostream>
+#include <string>
+#include <utility> // for std::swap
+
+// 自定义类 HasPtr
+class HasPtr {
+    // 声明 swap 为友元函数，使其可以访问私有成员
+    friend void swap(HasPtr&, HasPtr&);
+private:
+    std::string *ps;
+    int i;
+};
+
+// 自定义 swap(HasPtr&, HasPtr&)，用于高效交换 HasPtr 成员
+inline void swap(HasPtr& lhs, HasPtr& rhs) {
+    using std::swap;
+    // 调用标准库 swap 交换指针和 int
+    swap(lhs.ps, rhs.ps);
+    swap(lhs.i, rhs.i);
+}
+
+// 包含 HasPtr 成员的类 Foo
+class Foo {
+public:
+    HasPtr h;
+};
+
+// swap1: 强制使用 std::swap
+void swap1(Foo &lhs, Foo &rhs) {
+    // 这里直接写 std::swap，不允许 ADL 查找用户自定义 swap 函数
+    // 最终会调用 std::swap(lhs, rhs)，即执行拷贝构造 + 析构（可能效率较低）
+    std::swap(lhs, rhs);
+}
+
+// swap2: 推荐方式，支持 ADL 查找
+void swap2(Foo &lhs, Foo &rhs) {
+    using std::swap;
+    // 此处 swap(lhs, rhs) 会触发 ADL：
+    // 如果用户为 Foo 或其成员类型（如 HasPtr）定义了 swap，则优先使用这些版本
+    // 否则才退回使用 std::swap
+    swap(lhs, rhs);
+}
+
+// ✅ 推荐使用 swap2 的写法，因为它支持 ADL，可以调用用户为 Foo 或其成员提供的自定义 swap 函数
+// ❌ 不推荐 swap1 的写法，在有自定义 swap 的类中会丢失优化机会
+```
+
+#### 拷贝并交换
+
+```cpp
+#include <iostream>
+
+class HasPtr {
+public:
+    HasPtr &operator=(HasPtr);
+
+    friend void swap(HasPtr &, HasPtr &);
+
+private:
+    std::string *ps;
+    int i;
+};
+
+inline void swap(HasPtr &lhs, HasPtr &rhs) {
+    using std::swap;
+    swap(lhs.ps, rhs.ps); // 交换指针
+    swap(lhs.i, rhs.i);   // 交换值
+}
+
+HasPtr &HasPtr::operator=(HasPtr rhs) {
+    swap(*this, rhs);
+    return *this;
+}
+```
+
+假设有：
+
+```cpp
+HasPtr a;
+HasPtr b;
+a = b;  // 会发生什么？
+```
+
+流程如下：
+
+1. `b` 被值传递为参数 `rhs`，调用拷贝构造函数生成临时副本 `rhs`。
+2. `swap(*this, rhs)`：即交换 `a` 和 `rhs` 的资源。
+3. `rhs` 被销毁，原本 `a` 的旧资源被释放。
+4. `a` 拥有了 `b` 的内容（副本）。
+
+这个技巧的核心思路是：
+
+1. **参数按值传递**：调用这个函数时，会自动对传入参数 `rhs` 调用一次**拷贝构造函数**（产生一个副本 `rhs`）。
+2. **交换资源**：使用 `swap(*this, rhs)`，交换当前对象的资源和副本对象的资源。
+3. **结束后 rhs 离开作用域，被析构**，它原本持有的（旧的）资源会被自动释放。
+
+这样，对象 `*this` 拥有了新内容，旧内容随着 `rhs` 的销毁而安全释放。
+
+为什么这样写？
+
+- 异常安全
+
+  - 任何异常都发生在拷贝阶段（参数传进来前就已经拷贝好了），
+
+  - 如果失败，原对象不变，保证**强异常安全保证**（Strong Exception Guarantee）。
+
+- 代码复用
+  - 只需要定义一个 `swap` 和拷贝构造函数，就能实现安全的赋值逻辑，无需重复资源释放和分配代码。
+
+- 自给自足，简洁优雅
+
+  - 避免手动检查自赋值 `if (this != &rhs)`。
+
+  - 避免资源泄露和中间状态出错。
+
+  - 使用标准的 `swap` 机制管理所有资源交接。
+
+#### 对比传统写法
+
+传统写法：手动释放并复制资源
+
+```cpp
+HasPtr& HasPtr::operator=(const HasPtr& rhs) {
+    if (this != &rhs) {              // 处理自赋值
+        delete ps;                   // 释放原资源
+        ps = new std::string(*rhs.ps); // 分配新资源
+        i = rhs.i;                   // 拷贝数据成员
+    }
+    return *this;
+}
+```
+
+ 特点：
+
+| 问题点       | 说明                                             |
+| ------------ | ------------------------------------------------ |
+| ❌ 冗长       | 要显式写释放、分配逻辑                           |
+| ❌ 容易出错   | 少写 `if (this != &rhs)` 就炸了                  |
+| ❌ 异常不安全 | `new` 抛异常后，原资源已释放，程序处于不一致状态 |
+| ✅ 性能略优   | 避免一次副本（copy-and-swap 多了一次构造）       |
+
+| 对比项     | 传统写法                 | copy-and-swap                    |
+| ---------- | ------------------------ | -------------------------------- |
+| 代码简洁性 | ❌ 需要写释放、分配、拷贝 | ✅ 只需要一行 swap                |
+| 异常安全   | ❌ 不安全，容易资源泄露   | ✅ 拷贝失败不影响原对象           |
+| 自赋值处理 | ❌ 需要显式判断           | ✅ swap 不怕自赋值                |
+| 可维护性   | ❌ 难维护                 | ✅ 高内聚低耦合                   |
+| 依赖       | 无额外要求               | 需要定义 `swap`                  |
+| 性能       | ✅ 少一次构造             | ❌ 多一次副本（但可由编译器优化） |
