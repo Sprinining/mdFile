@@ -2,7 +2,7 @@
 
 **智能指针（Smart Pointer）** 是 C++ 中用于**自动管理动态内存**的一种机制，能有效避免手动 `new` / `delete` 带来的内存泄漏、重复释放、悬挂指针等问题。
 
-### 一、什么是智能指针
+### 什么是智能指针
 
 智能指针本质上是一个**封装了原始指针的类模板对象**，它负责：
 
@@ -12,7 +12,7 @@
 
 它是 C++ RAII（资源获取即初始化）思想的经典体现。
 
-### 二、智能指针的三大核心类型（C++11 引入）
+### 智能指针的三大核心类型（C++11 引入）
 
 | 名称              | 功能简介                                  |
 | ----------------- | ----------------------------------------- |
@@ -20,7 +20,7 @@
 | `std::shared_ptr` | 引用计数，共享所有权                      |
 | `std::weak_ptr`   | 弱引用，用于观察 `shared_ptr`，不拥有资源 |
 
-### 三、逐个详解
+### 逐个详解
 
 #### 1. `std::unique_ptr`（独占指针）推荐使用！
 
@@ -132,7 +132,7 @@ A destroyed
 B destroyed
 ```
 
-### 四、底层实现机制简述
+### 底层实现机制简述
 
 - `unique_ptr`: 就是一个简单的所有权对象，析构时调用 `delete`；
 
@@ -146,7 +146,7 @@ B destroyed
 
 - `weak_ptr`: 指向 `shared_ptr` 的控制块，不影响引用计数。
 
-### 五、常见陷阱和注意点
+### 常见陷阱和注意点
 
 #### 1. 不要用 `shared_ptr` 管理同一指针多次
 
@@ -245,7 +245,7 @@ auto obj = std::make_shared<MyClass>(arg1, mayThrow());  // ✅ 安全
 | 需要自定义 deleter | ❌ 必须用 `shared_ptr<T>(new T, deleter)` |
 | 从裸指针接管管理权 | ❌ 不推荐（更推荐用 `unique_ptr`）        |
 
-### 六、enable_shared_from_this
+### enable_shared_from_this
 
 `std::enable_shared_from_this` 是 C++11 引入的一个标准库模板类，用于解决 **在类的成员函数中安全地获取自身的 `shared_ptr`** 的问题。
 
@@ -479,7 +479,7 @@ std::shared_ptr<T> getSelf() {
 
 这样会创建一个全新的控制块（引用计数系统），跟原来的毫无关系，所以就会导致两次 delete。
 
-### 七、手写简化版 shared_ptr、weak_ptr
+### 手写简化版 shared_ptr、weak_ptr
 
 ```cpp
 #include <iostream>
@@ -808,5 +808,135 @@ Locked from WeakPtr, use_count: 2
 MyClass destructor called
 WeakPtr detects object is expired
 Lock failed, object already destroyed
+```
+
+### 智能指针和动态数组
+
+- <<C++ Primer>> 12.2.1
+
+#### 为什么 `std::shared_ptr<T>` 默认不能管理数组（`delete[]` 问题）
+
+##### 错误示例：会导致未定义行为（UB）
+
+```cpp
+#include <iostream>
+#include <memory>
+
+int main() {
+    std::shared_ptr<int> sp(new int[3]{1, 2, 3}); // 用 delete 释放 new[]
+    
+    // 访问内容（虽然可以访问，但释放时会出错）
+    std::cout << sp.get()[0] << ", " << sp.get()[1] << ", " << sp.get()[2] << std::endl;
+
+    // 离开作用域时 sp 调用 delete 而不是 delete[]，造成 UB
+    return 0;
+}
+```
+
+##### 正确示例：用自定义删除器管理数组
+
+```cpp
+#include <iostream>
+#include <memory>
+
+int main() {
+    std::shared_ptr<int> sp(new int[3]{1, 2, 3}, [](int* p){ delete[] p; }); // 正确的删除器
+
+    std::cout << sp.get()[0] << ", " << sp.get()[1] << ", " << sp.get()[2] << std::endl;
+
+    return 0; // 离开作用域时调用 delete[]，安全释放
+}
+```
+
+#### 为什么 `std::shared_ptr<T>` 没有提供 `operator[]`（下标访问）
+
+##### 错误示例：直接 `sp[1]` 无法编译
+
+```cpp
+#include <iostream>
+#include <memory>
+
+int main() {
+    std::shared_ptr<int> sp(new int[3]{10, 20, 30}, [](int* p){ delete[] p; });
+
+    // std::cout << sp[1] << std::endl; // 编译错误：no operator[] defined
+
+    return 0;
+}
+```
+
+##### 正确示例：通过 `get()` 获取裸指针后访问
+
+```cpp
+#include <iostream>
+#include <memory>
+
+int main() {
+    std::shared_ptr<int> sp(new int[3]{10, 20, 30}, [](int* p){ delete[] p; });
+
+    int* raw = sp.get(); // 返回裸指针
+    std::cout << raw[1] << std::endl; // 正确访问
+
+    return 0;
+}
+```
+
+C++20 起支持下标访问：
+
+```cpp
+#include <memory>
+#include <iostream>
+
+int main() {
+    std::shared_ptr<int[]> sp(new int[3]{1, 2, 3});  // delete[] 正确释放
+
+#if __cplusplus >= 202002L  // C++20 起支持下标访问
+    std::cout << sp[0] << ", " << sp[1] << ", " << sp[2] << std::endl;
+#else
+    int* raw = sp.get(); // C++17及以前手动访问
+    std::cout << raw[0] << ", " << raw[1] << ", " << raw[2] << std::endl;
+#endif
+
+    return 0;
+}
+```
+
+- `std::unique_ptr<int[]> up(new int[10]);` **从一开始（C++11起）就支持下标访问 `operator[]`**，这是 `unique_ptr` 对数组的专门偏特化版本的设计初衷。
+
+#### 像数组一样的 `shared_ptr`
+
+可以自己封装一个类：
+
+```cpp
+#include <iostream>
+#include <memory>
+
+template<typename T>
+class shared_array {
+public:
+    shared_array(size_t size)
+        : size_(size), ptr_(std::shared_ptr<T>(new T[size], [](T* p){ delete[] p; })) {}
+
+    T& operator[](size_t i) { return ptr_.get()[i]; }
+    const T& operator[](size_t i) const { return ptr_.get()[i]; }
+    size_t size() const { return size_; }
+
+private:
+    size_t size_;
+    std::shared_ptr<T> ptr_;
+};
+
+int main() {
+    shared_array<int> arr(3);
+    arr[0] = 7;
+    arr[1] = 14;
+    arr[2] = 21;
+
+    for (size_t i = 0; i < arr.size(); ++i)
+        std::cout << arr[i] << " ";
+    std::cout << std::endl;
+
+    return 0;
+}
 ```
 
