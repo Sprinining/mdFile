@@ -31,6 +31,53 @@ C++ 支持三种继承方式：
 | `protected` 继承 | protected        | protected           | 不可访问          |
 | `private` 继承   | private          | private             | 不可访问          |
 
+### 派生类构造函数中使用基类的构造函数
+
+#### **显式在派生类构造函数的初始化列表中调用基类构造函数**（最常用）
+
+```cpp
+struct Base {
+    Base(int x) { std::cout << "Base(" << x << ")\n"; }
+};
+
+struct Derived : Base {
+    Derived(int x) : Base(x) {  // 显式调用 Base 的构造函数
+        std::cout << "Derived(" << x << ")\n";
+    }
+};
+```
+
+#### **使用 `using Base::Base;` 继承构造函数**（C++11 起）
+
+```cpp
+struct Base {
+    Base(int x) { std::cout << "Base(" << x << ")\n"; }
+};
+
+struct Derived : Base {
+    using Base::Base;  // 继承构造函数
+    // 现在 Derived(int x) 自动存在，等效于调用 Base(x)
+};
+```
+
+这会让 `Derived` 自动拥有与 `Base` 构造函数相同的构造函数（合成形式），例如：
+
+```cpp
+Derived d(10);  // 实际调用的是 Base(10)
+```
+
+此时派生类自己的成员变量 **会按正常规则初始化**：
+
+- 如果给成员变量提供了默认初始值（C++11 起支持），它会被使用。
+- 否则就是默认构造（`T{}`）或未初始化（POD 类型如 `int`）的状态。
+
+| 特性                                 | 说明                           |
+| ------------------------------------ | ------------------------------ |
+| 自动继承构造函数                     | 无需显式写构造函数             |
+| 不会继承拷贝/移动构造、析构函数      | 仍需自定义或默认生成           |
+| 不会继承构造函数体中的逻辑           | 若要附加逻辑仍需自己写构造函数 |
+| 基类构造函数为 `explicit` 也会被继承 | 同样保留 `explicit`            |
+
 ### 访问控制 + 三种继承方式
 
 ```cpp
