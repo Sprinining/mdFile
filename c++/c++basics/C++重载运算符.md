@@ -403,3 +403,47 @@ std::ostream& operator<<(std::ostream&, const MyClass&); // ostream 是左侧，
 
 - 成员函数：用于 **修改自身或本身是主角的运算符**（如 `=`, `+=`, `[]`, `()`）。
 - 非成员函数（通常配合 friend）：用于 **对称或左操作数不是类对象的运算符**（如 `+`, `==`, `<<`）。
+
+### 类型转换运算符函数
+
+```cpp
+class MyNumber {
+    float value;
+public:
+    MyNumber(float v) : value(v) {}
+
+    operator float() const {
+        return value;
+    }
+};
+```
+
+使用方式：
+
+```cpp
+MyNumber num(3.14f);
+
+float a = num;           // 自动转换为 float，调用 operator float()
+std::cout << a << "\n";  // 输出：3.14
+
+// 也可以显式调用：
+float b = static_cast<float>(num);
+```
+
+- 函数签名：`operator float() const;`
+- 无返回类型（返回类型就是函数名部分指定的目标类型）
+- 只能有一个参数（也就是 `this`）
+- `const` 表示不能修改成员（可在 `const` 对象上调用）
+
+#### 注意事项：
+
+1. **隐式转换可能引发意料之外的行为**，例如传参或重载解析时。
+    可用 `explicit operator float() const;` 禁止隐式转换（C++11 起支持）。
+2. **如果还有 `operator int()`、`operator double()` 等，可能导致二义性**。
+
+如果不是明确需要自动转换，**尽量加上 `explicit`** 限制只支持显式类型转换：
+
+```cpp
+explicit operator float() const;
+```
+
