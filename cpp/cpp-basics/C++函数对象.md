@@ -1,4 +1,4 @@
-## 函数对象
+## C++ 函数对象
 
 ### 函数对象（仿函数）（Function Object，Functors）
 
