@@ -185,7 +185,7 @@ QToolTip {
 }
 ```
 
-### QSS 不生效的原因：
+### QSS 不生效的原因
 
 1. 控件 `objectName` 不正确（比如 labelPro 写成了 label_pro）
 2. 样式设置过早或设置在错误的控件上
@@ -236,5 +236,67 @@ QScrollBar::handle:vertical {
     background: #555;
     border-radius: 4px;
 }
+```
+
+### Qt 样式优先级
+
+| 优先级 | 来源                                                   | 是否会覆盖 QSS | 示例                             |
+| ------ | ------------------------------------------------------ | -------------- | -------------------------------- |
+| 1️⃣      | **代码设置：setPalette() / setFont() / setStyle() 等** | ✅ 是           | `label->setFont(...)`            |
+| 2️⃣      | **UI 文件中手动设置的属性**                            | ✅ 是           | Qt Designer 设置颜色、字体等     |
+| 3️⃣      | **控件的 QSS（setStyleSheet 或 qApp->setStyleSheet）** | ✅ 中等         | `label->setStyleSheet(...)`      |
+| 4️⃣      | **控件的默认外观（系统主题样式）**                     | ❌ 被覆盖       | 未设置颜色、字体，系统默认的样子 |
+
+#### 代码设置（最高优先级）
+
+```cpp
+label->setFont(QFont("微软雅黑", 18));
+label->setPalette(...);
+```
+
+- 优先级最高，会直接覆盖 QSS。
+
+- 设置了字体、颜色、边框等，即使在 QSS 中设了，也不会生效。
+
+#### UI 文件中的属性设置（Designer 里设置的）
+
+- 在 Qt Designer 中选中一个控件，然后在属性编辑器里设置字体、前景色、背景色等。
+- Qt 会将其转化为代码等效形式（在构造时调用 `setFont()`、`setPalette()`），**和手动代码设置效果一样**，优先级高于 QSS。
+
+**解决方式**：不要在 UI 文件里设置这些属性，把它们交给 QSS 控制。
+
+#### QSS 设置（样式表）
+
+包括以下几种方式：
+
+```cpp
+qApp->setStyleSheet("QLabel { color: red; }");         // 全局 QSS
+label->setStyleSheet("color: red;");                   // 局部 QSS
+```
+
+- QSS 在没有代码或 UI 设置属性时，是有效的；
+- QSS 设置后，可以统一控件外观；
+- 它是非常灵活的，但被代码/UI 显式设置时可能被**部分覆盖**。
+
+#### 默认样式（系统主题）
+
+- 当什么都不设置时，Qt 会使用系统风格，如 Windows/ macOS / Fusion 样式。
+- 默认值是最低的，几乎总是可以被 QSS 覆盖。
+
+#### 避免 QSS 无效的建议
+
+1. **不要在 Qt Designer 中设置字体、颜色、背景等外观属性**；
+2. **不要在代码中调用 `setFont()`、`setPalette()`，除非不打算用 QSS 控制外观**；
+3. **推荐统一使用 QSS 控制界面主题，集中管理样式逻辑**；
+4. 如果 QSS 仍然不生效，**确保 objectName 是否正确、资源路径是否加载成功**。
+
+#### 示例对比
+
+```cpp
+label->setFont(QFont("宋体", 20)); // 优先级最高，覆盖QSS字体设置
+
+label->setStyleSheet("font-size: 14px; color: red;"); // 优先级中等
+
+// UI中设置了字体=宋体12号，也会影响QSS
 ```
 
