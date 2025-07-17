@@ -1,179 +1,275 @@
----
-title: priority_queue
-date: 2024-08-25 04:29:31 +0800
-categories: [c++]
-tags: [C++, C++ STL]
-description: 
----
 ## priority_queue
 
-`priority_queue `容器适配器定义了一个元素有序排列的队列。默认队列头部的元素优先级最高。因为它是一个队列，所以只能访问第一个元素，这也意味着优先级最高的元素总是第一个被处理。
+`std::priority_queue` 是 STL 提供的**容器适配器**，实现了一个**最大堆（默认）**或最小堆的数据结构，用于快速访问“优先级最高”的元素。
 
-```c++
-// 有 3 个参数，其中两个有默认的参数；第一个参数是存储对象的类型，第二个参数是存储元素的底层容器，第三个参数是函数对象，它定义了一个用来决定元素顺序的断言。
-template <typename T, typename Container=vector<T>, typename Compare=less<T>> class priority_queue
+默认行为是：**堆顶元素最大（max heap）**。
+
+### 底层原理
+
+底层基于 **`vector` + `make_heap`/`push_heap`/`pop_heap` 算法**实现。
+
+```cpp
+template<
+  class T,
+  class Container = std::vector<T>,
+  class Compare = std::less<typename Container::value_type>
+> class priority_queue;
 ```
 
-`priority_queue` 实例默认有一个 `vector `容器。函数对象类型 `less<T>` 是一个默认的排序断言，定义在头文件 `function `中（其中还定义了 `greater<T>`），决定了容器中==最大的元素会排在队列前面==。
+- 默认容器为 `vector<T>`。
+- 默认比较器为 `std::less<T>` → 形成最大堆。
+- 本质是对一个底层容器进行堆排序封装。
 
-```c++
-int main() {
-    vector<int> ary = {9, 5, 2, 7};
-    // 默认用 less<>，队头（堆顶）是最大元素
-    priority_queue<int> heap{begin(ary), end(ary)};
+### 常用接口
 
-    // 使用 greater<>，队头（堆顶）是最小元素
-    priority_queue<int, vector<int>, greater<>> heap2{begin(ary), end(ary)};
+| 函数         | 含义                         |
+| ------------ | ---------------------------- |
+| `push(x)`    | 插入元素，保持堆序性         |
+| `pop()`      | 移除堆顶（优先级最高的元素） |
+| `top()`      | 访问堆顶元素（不移除）       |
+| `empty()`    | 是否为空                     |
+| `size()`     | 当前元素个数                 |
+| `emplace(x)` | 原地构造插入（C++11）        |
 
-    // 优先级队列可以使用任何容器来保存元素，只要容器有成员函数 front()、push_back()、pop_back()、size()、empty()。这显然包含了 deque 容器
-    priority_queue<int, deque<int>, greater<>> heap3{begin(ary), end(ary)};
-}
-```
+### 示例代码（最大堆）
 
-![img](./priority_queue.assets/2-1P913134031947.jpg)
-
-### 创建和初始化
-
-```c++
-int main() {
-    // 1.生成一个空的优先级队列
-    priority_queue<string> words;
-
-    // 初始化列表中的序列可以来自于任何容器，并且不需要有序。优先级队列会对它们进行排序
-    string wrds[]{"one", "two", "three", "four"};
-    // 2.用适当类型的对象初始化一个优先级队列
-    priority_queue<string> words2{begin(wrds), end(wrds)}; // "two" "three" "one" "four"
-
-    // 3.拷贝构造函数会生成一个和现有对象同类型的 priority_queue 对象，它是现有对象的一个副本
-    priority_queue<string> copy_words{words2};
-
-    // 4.可以生成 vector 或 deque 容器，然后用它们来初始化 priority_queue
-    vector<int> values{21, 22, 12, 3, 24, 54, 56};
-    // 第一个参数对元素排序的函数对象，第二个参数是一个提供初始元素的容器
-    priority_queue<int> numbers{less<int>(), values};
-	// 在队列中用函数对象对 vector 元素的副本排序。values 中元素的顺序没有变，但是优先级队列中的元素顺序会改变。优先级队列中用来保存元素的容器是私有的，因此只能通过调用 priority_queue 对象的成员函数来对容器进行操作。
-
-    // 5.如果想使用不同类型的比较函数，需要指定全部的模板类型参数
-    priority_queue<int, vector<int>, greater<>> numbers2{greater<>(), values};
-}
-```
-
-### priority_queue 操作
-
-对 priority_queue 进行操作有一些限制：
-
-- `push(const T& obj)`：将 obj 的副本放到容器的适当位置，这通常会包含一个排序操作。
-- `push(T&& obj)`：将 obj 放到容器的适当位置，这通常会包含一个排序操作。
-- `emplace(T constructor a rgs...)`：通过调用传入参数的构造函数，在序列的适当位置构造一个T对象。为了维持优先顺序，通常需要一个排序操作。
-- `top()`：返回优先级队列中第一个元素的引用。
-- `pop()`：移除第一个元素。
-- `size()`：返回队列中元素的个数。
-- `empty()`：如果队列为空的话，返回true。
-- `swap(priority_queue<T>& other)`：和参数的元素进行交换，所包含对象的类型必须相同。
-
-priority_queue 也实现了赋值运算，可以将右操作数的元素赋给左操作数；同时也定义了拷贝和移动版的赋值运算符。需要注意的是，priority_queue 容器并没有定义比较运算符。因为需要保持元素的顺序，所以添加元素通常会很慢。
-
-### 自定义比较函数
-
-#### 定义函数
-
-- 属于传入函数指针的方式
-
-```c++
-#include <vector>
-#include <iostream>
+```cpp
 #include <queue>
-
+#include <iostream>
 using namespace std;
 
-struct ListNode {
-    int val;
-    ListNode *next;
+int main() {
+    priority_queue<int> pq;
 
-    ListNode() : val(0), next(nullptr) {}
+    pq.push(10);
+    pq.push(5);
+    pq.push(20);
 
-    ListNode(int x) : val(x), next(nullptr) {}
+    while (!pq.empty()) {
+        cout << pq.top() << " ";  // 20 10 5
+        pq.pop();
+    }
+}
+```
 
-    ListNode(int x, ListNode *next) : val(x), next(next) {}
+### 自定义最小堆
+
+使用 `std::greater<T>` 创建最小堆：
+
+```cpp
+priority_queue<int, vector<int>, greater<int>> minHeap;
+```
+
+### 自定义比较器
+
+#### 函数指针（Function Pointer）
+
+定义一个普通函数，实现两个元素比较逻辑，返回布尔值。
+
+```cpp
+bool cmp(int a, int b) {
+    return a > b;  // 逆序
+}
+
+std::sort(vec.begin(), vec.end(), cmp);
+```
+
+- 简单直观，语法熟悉
+- 适合轻量且不需要额外状态的比较逻辑
+- 不能捕获外部状态（无闭包）
+- 性能不如内联（函数调用开销）
+
+#### 函数对象（仿函数 Functor）
+
+定义一个重载了 `operator()` 的类或结构体。
+
+```cpp
+struct Cmp {
+    bool operator()(int a, int b) const {
+        return a > b;
+    }
 };
 
-class Solution {
-public:
-    // 作为类成员函数，一定要声明static
-    static bool cmp(ListNode *a, ListNode *b) {
-        return (*a).val > (*b).val;
+std::sort(vec.begin(), vec.end(), Cmp());
+```
+
+- 允许携带成员变量，实现带状态的比较器
+- 可以内联，效率高于函数指针
+- 在容器中作为模板参数时非常常用
+- 语法比函数指针稍复杂
+
+#### Lambda 表达式（C++11 及以上）
+
+直接定义匿名函数，通常写在调用处。
+
+```cpp
+std::sort(vec.begin(), vec.end(), [](int a, int b) {
+    return a > b;
+});
+```
+
+- 简洁灵活
+- 支持捕获外部变量，实现闭包
+- 方便一次性使用，代码紧凑
+- 不能作为类型直接传递（除非用 `auto` 或 `decltype`）
+- 过度复杂的逻辑会影响可读性
+
+#### 成员函数指针 + 绑定
+
+不常用，一般借助 `std::bind` 或 `std::function` 绑定成员函数。
+
+#### `std::function` 类型（类型擦除）
+
+可以接收任何可调用对象，但有性能开销。
+
+```cpp
+std::function<bool(int, int)> cmp = [](int a, int b) { return a > b; };
+std::sort(vec.begin(), vec.end(), cmp);
+```
+
+#### 详细示例对比
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <functional>
+using namespace std;
+
+// 函数指针
+bool cmp_func(int a, int b) {
+    return a > b;
+}
+
+// 仿函数
+struct CmpFunctor {
+    bool operator()(int a, int b) const {
+        return a > b;
     }
 };
 
 int main() {
-    priority_queue<ListNode *, vector<ListNode *>, decltype(&Solution::cmp)> heap(Solution::cmp);
-    heap.push(new ListNode(2));
-    heap.push(new ListNode(1));
-    heap.push(new ListNode(6));
-    heap.push(new ListNode(3));
+    vector<int> vec = {3, 1, 4, 1, 5};
 
-    while (!heap.empty()) {
-        cout << (*heap.top()).val << " ";
-        heap.pop();
-    }
+    // 1. 函数指针
+    sort(vec.begin(), vec.end(), cmp_func);
+    for (int v : vec) cout << v << " ";  // 5 4 3 1 1
+    cout << endl;
+
+    // 2. 仿函数
+    sort(vec.begin(), vec.end(), CmpFunctor());
+    for (int v : vec) cout << v << " ";
+    cout << endl;
+
+    // 3. Lambda
+    sort(vec.begin(), vec.end(), [](int a, int b) { return a > b; });
+    for (int v : vec) cout << v << " ";
+    cout << endl;
+
+    // 4. std::function
+    function<bool(int, int)> cmp_stdfunc = [](int a, int b) { return a > b; };
+    sort(vec.begin(), vec.end(), cmp_stdfunc);
+    for (int v : vec) cout << v << " ";
+    cout << endl;
+
     return 0;
 }
 ```
 
-#### class 重载运算符()
+#### 带状态的比较器示例
 
-- 属于传入函数对象的方式
+```cpp
+struct CmpWithThreshold {
+    int threshold;
+    CmpWithThreshold(int t) : threshold(t) {}
 
-```c++
-class cmp {
+    bool operator()(int a, int b) const {
+        if ((a < threshold) != (b < threshold))
+            return a < threshold;  // 小于阈值排后面
+        return a > b;             // 其他按降序
+    }
+};
+
+int main() {
+    vector<int> v = {1, 10, 5, 7, 3};
+    sort(v.begin(), v.end(), CmpWithThreshold(6));
+    for (auto x : v) cout << x << " ";
+    // 输出：10 7 5 3 1
+}
+```
+
+#### 总结
+
+| 方法          | 是否支持状态 | 性能         | 语法简洁度 | 适用场景                 |
+| ------------- | ------------ | ------------ | ---------- | ------------------------ |
+| 函数指针      | 否           | 较差         | 简单       | 轻量无状态逻辑           |
+| 仿函数        | 支持         | 好           | 中等       | 需要携带状态时首选       |
+| Lambda        | 支持         | 好           | 非常简洁   | 快速定义，灵活捕获状态   |
+| std::function | 支持         | 差（有开销） | 灵活       | 需要类型擦除，接口多样时 |
+
+### 典型应用场景
+
+- Dijkstra 最短路（存边权最小）
+- Huffman 编码（合并最小频率节点）
+- Top-K 问题（维护一个 K 大小的堆）
+- 事件调度系统（按优先级处理任务）
+
+### 示例：维护前 K 小的数（最小堆）
+
+```cpp
+priority_queue<int> maxHeap;
+int k = 5;
+
+for (int x : nums) {
+    maxHeap.push(x);
+    if (maxHeap.size() > k)
+        maxHeap.pop();  // 始终保留 k 个最小元素
+}
+```
+
+### 与其他容器对比
+
+| 容器             | 行为模式   | 访问方式      | 支持遍历 | 底层结构      |
+| ---------------- | ---------- | ------------- | -------- | ------------- |
+| `stack`          | LIFO       | 只看顶        | ❌        | `deque`       |
+| `queue`          | FIFO       | 看 front/back | ❌        | `deque`       |
+| `priority_queue` | 优先级顺序 | 只看 top      | ❌        | `vector` + 堆 |
+
+### 源码核心逻辑（简化）
+
+```cpp
+template <class T, class Container, class Compare>
+class priority_queue {
+protected:
+    Container c;
+    Compare comp;
+
 public:
-    bool operator()(int a, int b) {
-        return a > b;
+    void push(const T& x) {
+        c.push_back(x);
+        push_heap(c.begin(), c.end(), comp);  // 保持堆序
     }
-};
-// 小顶堆
-priority_queue<int, vector<int>, cmp> heap;
-```
 
-#### struct 重载运算符
-
-- 属于传入函数对象的方式
-
-```c++
-struct cmp {
-    bool operator()(int a, int b) {
-        return a > b;
+    void pop() {
+        pop_heap(c.begin(), c.end(), comp);  // 堆顶移到末尾
+        c.pop_back();                        // 删除末尾元素
     }
+
+    const T& top() const { return c.front(); }
 };
-// 小顶堆
-priority_queue<int, vector<int>, cmp> heap;
 ```
 
-#### lambda 表达式
+### 常见问题
 
-- 属于传入函数指针的方式
+| 考点                        | 解答                                              |
+| --------------------------- | ------------------------------------------------- |
+| 如何实现最小堆？            | 使用 `greater<T>` 作为第三模板参数                |
+| 默认堆是大顶还是小顶？      | 默认是**大顶堆**                                  |
+| priority_queue 支持遍历吗？ | ❌ 不提供迭代器，不能遍历                          |
+| 支持修改中间元素吗？        | ❌ 不直接支持。需要自写堆或用 `make_heap` 重新构造 |
+| 如何实现 top-K 问题？       | 用一个大小为 K 的堆                               |
 
-```c++
-auto cmp = [](int a, int b) -> bool {
-    return a > b;
-};
-// 小顶堆
-priority_queue<int, vector<int>, decltype(cmp)> heap(cmp);
-```
-
-#### function 包装 lambda 表达式
-
-- 属于传入函数指针的方式
-
-```c++
-// 要导入头文件
-#include <functional>
-```
-
-```c++
-function<bool(int, int)> cmp = [](int a, int b) -> bool {
-    return a > b;
-};
-// 小顶堆
-priority_queue<int, vector<int>, decltype(cmp)> heap(cmp);
-```
+| 容器             | 比较器传入             | 表现                   |
+| ---------------- | ---------------------- | ---------------------- |
+| `std::sort`      | `a < b`                | 升序排序               |
+| `priority_queue` | `std::less`（`a < b`） | 最大堆，弹出顺序是降序 |
