@@ -18,7 +18,7 @@
 
 `unordered_set` 底层使用 **哈希表（hash table）** 实现，结构类似这样：
 
-```cpp
+```css
 桶数组（buckets）：每个 bucket 是一个链表或链式结构，称为“槽位”
 
 哈希函数(hash_fn) -> 元素值 -> 哈希值 -> 对 bucket 数取模 -> 落入某个槽位（桶）
@@ -36,7 +36,7 @@ bucket_index = hash(7) % bucket_count;
 
 例如：
 
-```cpp
+```css
 bucket[0] -> 7 -> 17 -> 27（哈希值相同模 bucket_count）
 ```
 
