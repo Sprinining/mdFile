@@ -1,164 +1,178 @@
----
-title: array
-date: 2024-08-20 09:03:57 +0800
-categories: [c++]
-tags: [C++, C++ STL]
-description: 
----
 ## array
 
-array<T,N> 模板定义了一种相当于标准数组的容器类型。它是一个有 N 个 T 类型元素的固定序列。除了需要指定元素的类型和个数之外，它和常规数组没有太大的差别。显然，不能增加或删除元素。
+`std::array` 是 C++11 引入的**固定大小数组封装类**，本质就是对原生数组 `T[N]` 的安全封装，提供了 STL 容器的接口支持（如迭代器、`begin()`、`size()`、`fill()`等）。
 
-模板实例的元素被内部存储在标准数组中。和标准数组相比，array 容器的额外幵销很小，但提供了两个优点：如果使用 at()，当用一个非法的索引访问数组元素时，能够被检测到，因为容器知道它有多少个元素，这也就意味着数组容器可以作为参数传给函数，而不再需要单独去指定数组元素的个数。
+> 适合在栈上存储、大小已知的固定数组，功能强于 C 风格数组，效率接近裸数组。
 
-### 创建
+### 基本语法与使用
 
-```c++
+```cpp
 #include <array>
-#include <iostream>
 
-using namespace std;
+std::array<int, 5> arr = {1, 2, 3, 4, 5};
+arr[0] = 10;
+arr.at(1) = 20;
+arr.size();           // == 5
+arr.fill(0);          // 全部置为 0
+```
 
-int main() {
-    // 创建具有 10 个 int 类型的数组，但未初始化
-    array<int, 10> data1;
-    // 将所有元素设成给定值
-    data1.fill(2);
-    // 创建具有 10 个 int 类型的数组，初始化为默认值
-    array<int, 10> data2{};
-    // 前三个初始化为指定值，后面的都初始化成默认值
-    array<int, 10> data3{1, 2, 3};
+### 底层实现原理
+
+```cpp
+template<typename T, std::size_t N>
+struct array {
+    T elems[N];  // 本质就是原生数组
+    ...
+};
+```
+
+- **固定大小**：`N` 是模板参数，编译时决定
+- **栈上分配**：不像 `vector` 使用堆内存
+- **内存连续**：与 `T[N]` 一样，可与 C 接口兼容
+- **无扩容能力**：只能用于固定数量元素的场景
+
+### 常用接口
+
+| 接口               | 功能                       |
+| ------------------ | -------------------------- |
+| `at(i)`            | 越界检查访问               |
+| `operator[]`       | 快速访问                   |
+| `front() / back()` | 首/尾元素                  |
+| `size()`           | 返回元素数量（编译期常量） |
+| `fill(val)`        | 全部赋值为 `val`           |
+| `begin() / end()`  | STL 迭代器支持             |
+| `data()`           | 返回底层 `T*` 指针         |
+
+```cpp
+for (int x : arr) {}
+std::sort(arr.begin(), arr.end());
+```
+
+### 与其他容器对比
+
+| 容器         | 是否定长 | 是否可扩容 | 是否连续内存 | 是否支持 STL 算法 |
+| ------------ | -------- | ---------- | ------------ | ----------------- |
+| `array`      | ✅        | ❌          | ✅            | ✅                 |
+| `vector`     | ❌        | ✅          | ✅            | ✅                 |
+| `list`       | ❌        | ✅          | ❌（链式）    | ✅                 |
+| C 数组 `T[]` | ✅        | ❌          | ✅            | ❌（无接口）       |
+
+### 典型场景
+
+#### 固定大小的缓存、结构体字段
+
+```cpp
+std::array<uint8_t, 16> uuid;
+std::array<char, 128> buffer;
+```
+
+#### 与 C 接口交互
+
+```cpp
+void foo(char* buf);
+std::array<char, 128> buffer;
+foo(buffer.data());
+```
+
+### 注意事项
+
+#### 不能 resize
+
+```cpp
+arr.resize(10); // 编译错误
+```
+
+#### 不能推导长度
+
+```cpp
+std::array a = {1,2,3}; // 错误，必须写明长度
+```
+
+必须这样写：
+
+```
+std::array<int, 3> a = {1, 2, 3};
+```
+
+（C++20 支持 `std::to_array()` 自动推导）
+
+### 和 C 数组区别
+
+| 特性          | `T[N]`    | `std::array<T,N>`      |
+| ------------- | --------- | ---------------------- |
+| 默认初始化    | ❌         | ✅（值初始化或空）      |
+| 拷贝赋值      | ❌         | ✅                      |
+| 成员函数      | ❌         | ✅（`fill`, `size` 等） |
+| 支持 STL 算法 | ❌         | ✅                      |
+| 传参变指针    | ✅（退化） | ❌（保持类型）          |
+
+对于**原生数组** `int arr[3];`，不能直接用赋值操作或拷贝构造：
+
+```cpp
+int arr1[3] = {1,2,3};
+int arr2[3];
+arr2 = arr1;  // 编译错误，数组不支持赋值操作
+```
+
+但 `std::array` 是一个**封装类**，支持默认的拷贝构造和赋值运算符：
+
+```cpp
+std::array<int, 3> a = {1,2,3};
+std::array<int, 3> b;
+b = a;          // 元素逐个拷贝
+```
+
+### `std::array` vs `std::vector` 使用场景选择
+
+| 特性/场景            | std::array                                                 | std::vector                                              |
+| -------------------- | ---------------------------------------------------------- | -------------------------------------------------------- |
+| **大小是否固定**     | ✅ 固定，编译期确定大小                                     | ❌ 动态，可运行时调整大小                                 |
+| **内存分配**         | 栈上分配（或内嵌对象内存）                                 | 堆上分配，动态管理                                       |
+| **性能**             | 高，连续内存，无堆开销                                     | 稍低，可能有扩容和堆分配开销                             |
+| **安全性**           | 较高，支持 `.at()` 越界检查                                | 较高，支持 `.at()` 越界检查                              |
+| **是否支持动态扩容** | ❌ 不支持                                                   | ✅ 支持                                                   |
+| **适合场景**         | - 元素数量固定  - 小数组或嵌套数组  - 性能敏感的栈空间操作 | - 元素数量不固定  - 需要频繁插入删除  - 容器大小动态变化 |
+| **使用方便程度**     | 简单，接口少                                               | 丰富，功能强大                                           |
+| **迭代器稳定性**     | 永远有效                                                   | 可能失效（扩容、插入、删除）                             |
+| **与 C 接口兼容性**  | 高，直接可获取指针，且指针有效期稳定                       | 高，但需注意扩容导致地址变化                             |
+| **示例**             | `std::array<int, 4> a = {1,2,3,4};`                        | `std::vector<int> v = {1,2,3,4};`                        |
+
+#### 何时选用 `std::array`
+
+- 元素数量固定且已知，编译期大小确定。
+- 需要最高性能，避免堆分配和内存碎片。
+- 作为类成员，方便拷贝和赋值。
+- 用于小型缓存、固定格式数据（如颜色通道、坐标点）。
+- 需要和 C 接口无缝兼容。
+
+#### 何时选用 `std::vector`
+
+- 元素数量不确定或动态变化。
+- 需要频繁插入、删除或调整大小。
+- 容器大小大或数据量庞大，堆分配更灵活。
+- 希望利用丰富的 STL 算法和适配器。
+- 需要可变长度数组行为。
+
+#### 额外建议
+
+- 对于性能极限场景，优先考虑 `std::array`，避免堆分配。
+- 不确定大小时，用 `std::vector`。
+- C++20 以后可用 `std::span` 作为 `array` 和 `vector` 共享的轻量视图，避免拷贝。
+
+### 作为类成员 / 模板参数
+
+```cpp
+struct Packet {
+    std::array<uint8_t, 256> data;
+};
+```
+
+或者传入函数：
+
+```cpp
+template<std::size_t N>
+void print(const std::array<int, N>& arr) {
+    for (auto x : arr) std::cout << x << " ";
 }
 ```
 
-### 访问
-
-```c++
-#include <array>
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    array<int, 10> ary{1, 2, 3, 4};
-
-    // 没有做任何边界检査
-    // cout << ary[22];
-    // 检查越界索引值，会抛出 std::out_of_rang 异常
-    // cout << ary.at(22);
-
-    // 访问头尾
-    cout << ary.front() + ary.back() << endl;
-    // 返回容器底层用来存储元素的标准数组的地址
-    cout << ary.data() << endl;
-    // 模板函数 get<n>() 是一个辅助函数，它能够获取到容器的第 n 个元素
-    cout << get<3>(ary) << endl;
-    // 基于范围的循环
-    for (int value: ary)
-        cout << value << " ";
-    cout << endl;
-
-    // 判空和返回大小
-    if (!ary.empty())
-        cout << ary.size() << endl;
-}
-```
-
-### 迭代器
-
-数组模板定义了成员函数 begin() 和 end()，分别返回指向第一个元素和最后一个元素的下一个位置的随机访问迭代器。
-
-```c++
-#include <array>
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    array<int, 10> ary{};
-    // 迭代器对象是由 array 对象的成员函数 begin() 和 end() 返回
-    auto first = ary.begin();
-    array<int, 10>::iterator last = ary.end();
-    while (first != last) {
-        // 在循环中显式地使用迭代器来设置容器的值
-        *first = 2;
-        first++;
-    }
-
-    for (int i = 0; i < 10; ++i) {
-        cout << ary[i] << " ";
-    }
-}
-```
-
-最好用全局的 begin() 和 end() 函数来从容器中获取迭代器，因为它们是通用的，first 和 last 可以像下面这样定义：
-
-```c++
-auto first = begin(ary);
-array<int, 10>::iterator last = end(ary);
-```
-
-当迭代器指向容器中的一个特定元素时，它们没有保留任何关于容器本身的信息，所以我们无法从迭代器中判断，它是指向 array 容器还是指向 vector 容器。容器中的一段元素可以由迭代器指定，这让我们有了对它们使用算法的可能。
-
-定义在 algorithm 头文件中的 generate() 函数模板，提供了用函数对象计算值、初始化一切元素的可能:
-
-```c++
-#include <array>
-#include <iostream>
-#include <algorithm>
-
-using namespace std;
-
-int main() {
-    array<int, 10> ary{};
-    int a{};
-    int b{10};
-    // generate() 的前两个参数分别是开始迭代器和结束迭代器，用来指定需要设置值的元素的范围
-    // 第三个参数是一个 lambda 表达式。lambda 表达式以引用的方式捕获 b
-    // mutable 使 lambda 表达式能够更新 a 局部副本的值，它是以值引用的方式捕获的。
-    generate(begin(ary), end(ary), [a, &b]()mutable {
-        return a++ + b;
-    });
-}
-```
-
-函数模板 iota() 可以做到用连续的递增值初始化一个数组容器:
-
-```c++
-#include <array>
-#include <iostream>
-#include <numeric>
-
-using namespace std;
-
-int main() {
-    array<int, 10> ary{};
-    // 前两个参数是迭代器，用来定义需要设置值的元素的范围。第三个参数是第一个元素要设置的值，通过递增运算生成了随后每一个元素的值
-    iota(begin(ary), end(ary), 10);
-}
-```
-
-容器定义了成员函数 cbegin() 和 cend()，它们可以返回 const 迭代器。当只想访问元素时，应该使用 const 迭代器。
-
-### 元素比较
-
-```c++
-#include <array>
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    array<int, 4> these{1, 2, 3, 4};
-    array<int, 4> those{1, 2, 3, 4};
-    array<int, 4> them{1, 3, 3, 2};
-
-    // 对 ==,如果两个数组对应的元素都相等，会返回 true。对于 !=，两个数组中只要有一个元素不相等，就会返回 true。
-    if (these == those) cout << "these and those are equal." << endl;
-    if (those != them) cout << "those and them are not equal." << endl;
-    if (those < them) cout << "those are less than them." << endl;
-
-    // 只要它们存放的是相同类型、相同个数的元素，就可以将一个数组容器赋给另一个
-    them = those;
-}
-```
