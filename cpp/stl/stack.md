@@ -1,52 +1,103 @@
----
-title: stack
-date: 2024-08-20 10:42:10 +0800
-categories: [c++]
-tags: [C++, C++ STL]
-description: 
----
 ## stack
 
-![img](./stack.assets/2-1P913101Q4T2.jpg)
+`std::stack` 是一个 **容器适配器（container adapter）**，用于模拟 **后进先出（LIFO）** 的栈结构。
 
- 定义一个用来存放字符串对象的 stack 容器:
+它 **封装了一个底层容器**（默认是 `deque`），并 **仅暴露部分接口**（如 `push`, `pop`, `top`），从而屏蔽掉底层容器的其余功能。
 
-```c++
-stack<string> words;
+### 常见接口
+
+```cpp
+#include <stack>
+using namespace std;
+
+stack<int> s;
+s.push(1);      // 入栈
+s.push(2);
+s.top();        // 查看栈顶（不弹出），返回 2
+s.pop();        // 弹出栈顶，栈变为 [1]
+s.empty();      // 判断是否为空
+s.size();       // 返回元素个数
 ```
 
-stack 容器适配器的模板有两个参数。第一个参数是存储对象的类型，第二个参数是底层容器的类型。`stack<T>` 的底层容器默认是 `deque<T>` 容器，因此模板类型其实是 `stack<typename T, typename Container=deque<T>>`。通过指定第二个模板类型参数，可以使用任意类型的底层容器，只要它们支持 `back()`、`push_back()`、`pop_back()`、`empty()`、`size()` 这些操作。下面展示了如何定义一个使用 `list<T>` 的堆栈：
+接口列表：
 
-```c++
-stack<string,list<string>> fruit;
+| 接口        | 说明                   |
+| ----------- | ---------------------- |
+| `push(x)`   | 入栈                   |
+| `pop()`     | 出栈（移除栈顶元素）   |
+| `top()`     | 查看栈顶元素（不移除） |
+| `empty()`   | 是否为空               |
+| `size()`    | 元素个数               |
+| `emplace()` | 原地构造元素（C++11）  |
+
+### 底层原理
+
+stack 本质上是对底层容器的封装（默认 `deque`）：
+
+```cpp
+template<
+    class T,
+    class Container = std::deque<T>
+> class stack;
 ```
 
-创建堆栈时，不能在初始化列表中用对象来初始化，但是可以用另一个容器来初始化，只要堆栈的底层容器类型和这个容器的类型相同。
+也可以指定 `vector<T>` 或 `list<T>` 作为底层容器：
 
-```c++
-list<double> values{1.414, 3.14159265, 2.71828};
-stack<double, list<double>> my_stack(values);
+```cpp
+stack<int, vector<int>> s1;
+stack<int, list<int>> s2;
 ```
 
-第二条语句生成了一个包含 value 元素副本的 my_stack。这里不能在 stack 构造函数中使用初始化列表；必须使用圆括号。如果没有在第二个 stack 模板类型参数中将底层容器指定为 list，那么底层容器可能是 deque，这样就不能用 list 的内容来初始化 stack；只能接受 deque。
+要求底层容器必须支持：`back()`, `push_back()`, `pop_back()`。
 
-`stack<T>` 模板定义了拷贝构造函数，因而可以复制现有的 stack 容器：
+### 示例代码
 
-```c++
-stack<double,list<double>>copy_stack {my_stack}
+```cpp
+#include <iostream>
+#include <stack>
+using namespace std;
+
+int main() {
+    stack<int> s;
+    for (int i = 1; i <= 5; ++i) s.push(i);  // 入栈 1~5
+
+    while (!s.empty()) {
+        cout << s.top() << " ";  // 5 4 3 2 1
+        s.pop();
+    }
+}
 ```
 
-copy_stack 是 my_stack 的副本。如你所见，在使用拷贝构造函数时，既可以用初始化列表，也可以用圆括号。
+### 使用场景举例
 
-### 堆栈操作
+- 表达式求值（中缀转后缀、逆波兰表达式）
+- 括号匹配
+- 深度优先搜索（DFS）
+- 回溯/撤销操作
+- 浏览器前进/后退功能模拟
 
-和其他序列容器相比，stack 是一类存储机制简单、所提供操作较少的容器。下面是 stack 容器可以提供的一套完整操作：
+### 常见问题
 
-- `top()`：返回一个栈顶元素的引用，类型为 T&。如果栈为空，返回值未定义。
-- `push(const T& obj)`：可以将对象副本压入栈顶。这是通过调用底层容器的 `push_back()` 函数完成的。
-- `push(T&& obj)`：以移动对象的方式将对象压入栈顶。这是通过调用底层容器的有右值引用参数的 `push_back()` 函数完成的。
-- `pop()`：弹出栈顶元素。
-- `size()`：返回栈中元素的个数。
-- `empty()`：在栈中没有元素的情况下返回 true。
-- `emplace()`：用传入的参数调用构造函数，在栈顶生成对象。
-- `swap(stack<T> & other_stack)`：将当前栈中的元素和参数中的元素交换。参数所包含元素的类型必须和当前栈的相同。对于 stack 对象有一个特例化的全局函数 swap() 可以使用。
+1. **`stack` 能用哪些容器做底层？为啥默认是 `deque`？**
+   - 要求底层容器支持 `back()`, `push_back()`, `pop_back()`
+   - `deque` 支持更快的尾部插入删除，且可双端扩展，默认更安全
+2. **能不能遍历 `stack`？**
+   - ❌ 不能，`stack` 故意不暴露迭代器
+   - 若需遍历，可用 `vector` 实现类栈行为
+3. **stack 的线程安全性？**
+   - STL 的容器默认不是线程安全的，需用户自行加锁
+4. **top() 后能否继续使用栈？**
+   - 可以，`top()` 不会移除元素，`pop()` 才会
+
+### 注意事项
+
+- `stack.pop()` **不会返回值**！你要先用 `top()` 获取，再 `pop()`。
+
+  ```cpp
+  int x = s.top();
+  s.pop();  // 正确方式
+  ```
+
+- 不支持遍历（无 `begin()`/`end()`），如需遍历请用其他容器模拟。
+
+- C++ STL `stack` 是**容器适配器**，并非底层容器，效率受限于其底层实现。
