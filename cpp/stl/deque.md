@@ -1,96 +1,139 @@
----
-title: deque
-date: 2024-08-20 03:09:01 +0800
-categories: [c++]
-tags: [C++, C++ STL]
-description: 
----
 ## deque
 
-`deque<T>`，一个定义在 deque 头文件中的容器模板，可以生成包含 T 类型元素的容器，它以双端队列的形式组织元素。可以在容器的头部和尾部高效地添加或删除对象，这是它相对于 vector 容器的优势。
+`deque` 是一个非常强大的容器，兼顾了随机访问和双端插删，适合做队列、缓存、滑动窗口等场景。底层结构比 `vector` 复杂，但性能更稳健，是 STL 容器中非常实用的一种。
 
-### 创建
+### 基本特点
 
-![img](./deque.assets/2-1P912112354246.jpg)
+| 特性项   | 描述                                                         |
+| -------- | ------------------------------------------------------------ |
+| 全称     | Double Ended Queue（双端队列）                               |
+| 隶属     | STL 顺序容器之一                                             |
+| 存储结构 | **分段连续内存结构**（不像 `vector` 那样完全连续）           |
+| 支持操作 | **随机访问 + 头尾插入删除**，不适合中间插入                  |
+| 默认底层 | 一般实现为**指针数组 + 块状内存区块**（典型 chunk size 为 512 字节） |
+| 访问速度 | 访问中间元素略慢于 vector，但比 list 快                      |
 
-```c++
-#include <algorithm>
-#include <string>
-#include <deque>
+### 底层原理图解
 
-using namespace std;
+```css
+逻辑视图：     [a0][a1][a2]...[an]
+               ↑   ↑   ↑     ↑
+            指向不同的内存块（元素连续）
 
-int main() {
-    // 默认的构造函数生成 deque 容器，容器中没有任何元素，因此添加第一个元素，就会导致内存的分配
-    deque<int> data1;
-    // 生成给定元素个数的 deque 容器，每个元素保存的都是这种元素类型的默认值
-    deque<int> data2(10);
-    // 用初始化列表来生成 deque 容器
-    deque<string> words{"one", "none", "some", "all", "none", "most", "many"};
-
-    // 生成现有容器的副本
-    deque<string> words_copy{words};
-    // 由两个迭代器标识的一段元素来初始化它，作为初始值的一段元素，可以来自任何种类的容器，不需要一定是 deque
-    // 这个容器有 5 个元素，它们和 words 容器的前 5 个元素相等
-    deque<string> words_part{begin(words), begin(words) + 5};
-}
+内部结构：
+- 一张“指针表”指向每一块内存
+- 每块内存用于存储若干元素
+- 逻辑顺序连续，但物理上非一整块
 ```
 
-### 访问
+相比 `vector`：
 
-deque 容器中的元素是序列，但是内部的存储方式和 vector 不同。它组织元素的方式导致容器的大小总是和容量相等。因此没有定义成员函数 `capacity()`，deque 只有成员函数 `size()`，它以成员类型 size_type 的无符号整型来返回当前元素个数。
+| 特性     | `vector`         | `deque`                |
+| -------- | ---------------- | ---------------------- |
+| 内存布局 | 单块连续         | 分段连续               |
+| 尾插效率 | 快               | 快                     |
+| 头插效率 | 慢（要整体搬移） | 快（内部分配前段空间） |
+| 随机访问 | O(1)             | O(1)（稍慢）           |
+| 中间插删 | 慢               | 慢（要移动多个块内容） |
 
-可以用下标运算符来访问元素，但是索引并没有进行边界检查。为了用进行边界检查的索引来访问元素，可以选择使用成员函数 `at()`，这和 vector 相同。
+### 常见接口
 
-deque 成员函数 `front()` 和 `back()` 的用法也和 vector 相同，然而，deque 却没有成员函数 `data()`，因为元素并没有被存放在数组中。deque 容器和 vector 一样，有三种不同重载版本的 `resize()` 函数，它们的操作基本相同。
+```cpp
+#include <deque>
+using namespace std;
 
-### 添加和删除
+deque<int> dq;
 
-deque 和 vector 都有成员函数 push_back() 和 pop_back()，它们在序列尾部添加或删除元素的方式相同。deque 也有成员函数 push_front() 和 pop_front()，可以在序列头部执行相似的操作。
+// 基本操作
+dq.push_back(1);
+dq.push_front(2);
+dq.pop_back();
+dq.pop_front();
 
-除了和 vector —样都有 emplace_back() 函数外，deque 还有成员函数 emplace_front()，可以在序列的开始位置生成新的元素。和 vector 一样，也可以使用 emplace() 或 insert() 在 deque 内部添加或移除元素。这个过程相对要慢一些，因为这些操作需要移动现有的元素。
+// 元素访问
+dq[0];         // 支持随机访问
+dq.at(1);      // 边界检查
+dq.front();    // 访问头部
+dq.back();     // 访问尾部
 
-关于 vector 容器的所有 insert() 函数也同样适用于 deque 容器。在 deque 的任意位置插入一个元素会让现有的迭代器全部失效，因此需要重新生成它们。deque 的成员函数 erase() 也和 vector 的相同，它的成员函数 clear() 可以移除一些元素。
+// 其他接口
+dq.size();
+dq.empty();
+dq.clear();
+dq.insert(dq.begin() + 1, 99);
+dq.erase(dq.begin());
+```
 
-### 修改
+### 示例代码
 
-```c++
-#include <algorithm>
-#include <string>
+```cpp
 #include <deque>
 #include <iostream>
-#include <vector>
-
 using namespace std;
 
 int main() {
-    deque<string> words{"one", "two", "three", "four"};
-    auto init_list = {string{"seven"}, string{"eight"}, string{"nine"}};
+    deque<int> dq = {1, 2, 3};
+    dq.push_front(0);  // {0, 1, 2, 3}
+    dq.push_back(4);   // {0, 1, 2, 3, 4}
+    dq.pop_back();     // {0, 1, 2, 3}
+    dq.pop_front();    // {1, 2, 3}
 
-    // 1.用 init_list 中的 string 对象替换掉了 words 中的元素
-    /*
-     * 这里不能直接把字符放入初始化列表。
-     * 如果这么做，init_list 的类型会被推导为 initializer_list<const char*>，
-     * 然而 assign() 需要的是一个 initializer_list<string> 类型的实参，这样就无法通过编译。
-     */
-    words.assign(init_list);
-    // 也可以不单独定义 init_list，可以在 assign() 的实参中定义初始化列表
-    // words.assign({"seven", "eight", "nine"});
-    // deque: seven eight nine
-
-    // 2.提供两个迭代器作为参数
-    vector<string> wordSet{"this", "that", "these", "those"};
-    words.assign(begin(wordSet) + 1, end(wordSet) - 1);
-    // deque: that these
-
-    // 3.用重复的对象来替换容器中的内容
-    words.assign(2, "two");
-    // deque: two two
-
-    // 为 deque 替换一套新元素
-    // otlier_words 会包含和 words 相同的元素，words 则包含初始化列表中的那些元素
-    deque<string> other_words;
-    other_words = words;
-    words = {"seven", "eight", "nine"};
+    for (int x : dq)
+        cout << x << " ";  // 输出：1 2 3
 }
 ```
+
+### 和其他容器对比
+
+| 操作     | `vector` | `deque`    | `list`             |
+| -------- | -------- | ---------- | ------------------ |
+| 尾部插入 | 快       | 快         | 快                 |
+| 头部插入 | 慢       | 快         | 快                 |
+| 中间插入 | 慢       | 慢         | 快（但无随机访问） |
+| 随机访问 | 快       | 快（略慢） | 慢（无支持）       |
+
+`deque` 是 vector 和 list 的中间态，平衡性能更适合做队列/缓存。
+
+### 预留空间
+
+容器预留空间，是为了避免频繁扩容时重新分配和移动数据。
+
+- `vector`：**只在尾部预留空间**，所以头部插入效率很低，要整体移动数据。
+- `deque`：**头部和尾部都能动态扩展**，而且提前预留了一些空间。
+
+`deque` 内部不是一整块内存，而是 **多个连续大小的“内存块（chunk）”**，用一个**指针表**来管理：
+
+```css
+内部结构（简化）：
+-------------------------------
+[ chunk0 ][ chunk1 ][ chunk2 ]
+   ↑         ↑         ↑
+指针表：管理每个内存块的位置
+```
+
+当调用 `push_front()` 插入元素时：
+
+- 如果 `chunk0` 前面还有空块，它直接用，不用移动元素。
+- 如果没有，就再分配一个新的块插入到前面，更新指针表。
+
+这就叫做**前端预留空间**：deque 会提前在头部保留一些块（或能扩容的空间），**让你能在前面 O(1) 插入**，而不像 vector 要搬整个数组。
+
+### 使用建议场景
+
+适合：
+
+- 实现队列（`std::queue` 默认就用 `deque`）
+- 频繁头尾插入删除
+- 不希望扩容时复制整个内存（vs `vector`）
+
+不适合：
+
+- 中间频繁插入删除（不如 `list`）
+- 元素地址不能变（如需要稳定指针）
+
+### 注意事项
+
+- `&dq[0]` 得到的内存不一定连续，**不能当数组用**
+- 指向元素的指针/引用在插入头部/尾部时可能失效（尤其跨块）
+- `insert` 在中间插入效率低（需搬动多个块内容）
+- 适配器 `std::queue` 默认使用的是 `deque`，不是 `list`
