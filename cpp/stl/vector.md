@@ -1,314 +1,299 @@
----
-title: vector
-date: 2024-08-27 09:59:18 +0800
-categories: [c++]
-tags: [C++, C++ STL]
-description: 
----
 ## vector
 
-`vector<T>` 容器是包含 T 类型元素的序列容器，和 `array<T，N>` 容器相似，不同的是 `vector<T>` 容器的大小可以自动增长，从而可以包含任意数量的元素；因此类型参数 T 不再需要模板参数 N。只要元素个数超出 vector 当前容量，就会自动分配更多的空间。只能在容器尾部高效地删除或添加元素。
+`std::vector` 是 C++ 标准库中提供的**动态数组容器**，支持快速随机访问，能够自动管理内存，使用灵活，是实际开发中最常用的 STL 容器之一。
 
-`vector<T>` 容器可以方便、灵活地代替数组。在大多数时候，都可以用 `vector<T>` 代替数组存放元素。只要能够意识到，`vector<T>` 在扩展容量，以 及在序列内部删除或添加元素时会产生一些开销；但大多数情况下，代码不会明显变慢。 为了使用 `vector<T>` 容器模板，需要在代码中包含头文件 vector。
+### 底层原理
 
-### 创建
+#### 内存结构
 
-1. 容器中没有元素，所以没有分配空间，当添加第一个数据项时，会自动分配内存：
-
-```c++
-vector<int> values;
+```css
+data   --> [x][x][x][ ][ ][ ][ ]...
+             ↑        ↑        ↑
+           begin()   end()   capacity
 ```
 
-因为容器中没有元素，所以没有分配空间，当添加第一个数据项时，会自动分配内存。可以像下面这样通过调用 `reserve()` 来增加容器的容量：
+底层通过三个指针管理状态：
 
-```c++
-// 设置了容器的内存分配，至少可以容纳 20 个元素
-values.reserve(20);
+- `begin()`：起始位置
+- `end()`：最后一个元素之后（逻辑长度）
+- `capacity()`：已分配空间的结尾（物理容量）
+
+所有元素是**连续存储的**。
+
+####  扩容机制（增长策略）
+
+当元素数量 > capacity 时：
+
+1. **分配更大的内存**（一般为原容量的约 1.5~2 倍）。
+2. **拷贝旧数据到新内存**（调用元素的拷贝构造/移动构造）。
+3. **释放旧内存**。
+
+这个过程是**代价较高**的，因此建议预先 `reserve()` 以避免频繁扩容。
+
+**注意**：扩容后原有的指针、引用、迭代器全部失效！
+
+#### 内存管理
+
+如果元素是自定义类型，插入或扩容时会调用：
+
+- 构造函数
+- 拷贝构造/移动构造
+- 析构函数
+
+所以定义 `struct`/`class` 时务必实现这几个方法！
+
+### 常见接口
+
+#### 构造与赋值
+
+```cpp
+vector<int> v1;                      // 默认构造
+vector<int> v2(10);                  // 10 个默认值 0
+vector<int> v3(5, 42);               // 5 个 42
+vector<int> v4 = {1, 2, 3};          // 初始化列表
+v1 = v4;                             // 拷贝赋值
+v.assign(n, value);       // 重新赋值
 ```
 
-如果当前的容量已经大于或等于 20 个元素，那么这条语句什么也不做。注意，调用 `reserve()` 并不会生成任何元素。values 容器这时仍然没有任何元素，直到添加了 20 个元素后，才会分配更多的内存。调用 `reserve()` 并不会影响现有的元素。
+#### 增删改查
 
-如果通过调用 `reserve()` 来增加内存，任何现有的迭代器，例如开始迭代器和结束迭代器，都会失效，所以需要重新生成它们。这是因为，为了增加容器的容量，`vector<T>` 容器的元素可能已经被复制或移到了新的内存地址。
-
-2. 创建 vector 容器的另一种方式是使用初始化列表来指定初始值以及元素个数：
-
-```c++
-// 以初始化列表中的値作为元素初始值，生成有 3 个 int 的 vector 容器
-vector<int> values{1, 2, 3};
+```cpp
+v.push_back(100);                   // 末尾添加
+v.pop_back();                       // 删除最后一个元素
+v.insert(v.begin() + 1, 200);       // 在指定位置插入
+v.erase(v.begin() + 1);             // 删除指定位置元素
+v.clear();                          // 清空所有元素
+v[2] = 999;                         // 修改第3个元素
+int x = v[2];                       // 访问元素（不检查越界）
 ```
 
-3. 使用初始元素个数来生成 vector 容器：
+#### 容量管理
 
-```c++
-// 容器开始时有 10 个元素，它们的默认初始值都为 0
-// 生成容器时，同时指定元素个数，就能够减少空间额外分配的次数
-vector<int> values(10);
+```cpp
+v.size();                           // 当前元素个数
+v.capacity();                       // 分配的容量
+v.empty();                          // 是否为空
+v.reserve(100);                     // 提前分配容量
+v.resize(20);                       // 调整大小，多余元素会析构，不足补默认值
 ```
 
-4. 指定一个其他值作为默认值:
+#### 迭代器
 
-```c++
-// 第二个参数指定了所有元素的初始值：10 个元素全都是 7
-vector<int> values(10, 7);
+```cpp
+begin(), end()         // 普通迭代器
+rbegin(), rend()       // 反向迭代器
+cbegin(), cend()       // const 迭代器
+
+for (auto it = v.begin(); it != v.end(); ++it) {}
+for (int x : v) {}                  // 范围 for
+auto r = std::find(v.begin(), v.end(), 42);
 ```
 
-5. 用元素类型相同的容器来初始化 `vector<T>` 容器
+#### 其他常用操作
 
-```c++
-#include <vector>
-#include <array>
-#include <iostream>
-#include <string>
+```cpp
+std::sort(v.begin(), v.end());
+std::reverse(v.begin(), v.end());
+std::vector<int> v2(v.rbegin(), v.rend()); // 反转拷贝
+```
 
-using namespace std;
+### 使用建议
 
-int main() {
-    array<string, 5> words{"one", "two", "three", "four", "five"};
-    // words_copy 被 words 数组容器中的元素初始化
-    vector<string> words_copy{begin(words), end(words)};
+| 需求           | 建议                                  |
+| -------------- | ------------------------------------- |
+| 大量插入       | 使用 `reserve()` 预分配               |
+| 不需要连续内存 | 考虑用 `list` 或 `deque`              |
+| 插入删除频繁   | 尽量避免中间插入/删除，性能差         |
+| 指针/引用      | vector 扩容时地址会变，存放指针需谨慎 |
 
-    // 如果使用移动迭代器指定 words_copy 的初始化范围，words 中的元素将会从 words 移到 words_copy
-    vector<string> words_copy2
-            {make_move_iterator(begin(words)), make_move_iterator(end(words))};
-    // words 数组中的字符串对象现在都是空字符串
+### 底层源码简析（以 libstdc++ 为例）
+
+```cpp
+template<typename _Tp, typename _Alloc = std::allocator<_Tp>>
+class vector {
+    _Tp* _M_start;			// 指向元素的起始地址
+    _Tp* _M_finish;			// 指向最后一个元素的“后一个地址”（即 size 末尾）
+    _Tp* _M_end_of_storage;	// 指向分配内存块的“末尾地址”（即 capacity 尾部）
+    // ...
+};
+```
+
+`begin()`、`end()`、`capacity()` 是 **对用户暴露的接口**，它们的返回值是基于上面三个指针的：
+
+| 接口         | 实际含义                       |
+| ------------ | ------------------------------ |
+| `begin()`    | 返回 `_M_start`                |
+| `end()`      | 返回 `_M_finish`               |
+| `size()`     | `_M_finish - _M_start`         |
+| `capacity()` | `_M_end_of_storage - _M_start` |
+
+扩容逻辑：
+
+```cpp
+void push_back(const T& val) {
+    if (_M_finish == _M_end_of_storage)
+        _M_reallocate();
+    *_M_finish = val;
+    ++_M_finish;
 }
 ```
 
-### 容量和大小
+### 常见问题
 
-vector 的容量大小，是指在不分配更多内存的情况下可以保存的最多元素个数，这时 可能有 20 个元素，也可能没有。vector 的大小是它实际所包含的元素个数，也就是有值的元素的个数。
+#### `emplace_back()` vs `push_back()` 性能差异
 
-![img](./vector.assets/2-1P912104441553.jpg)
+| 操作      | `push_back()`          | `emplace_back()`            |
+| --------- | ---------------------- | --------------------------- |
+| 需求      | 需要现成对象           | 就地构造对象                |
+| 拷贝/移动 | 可能触发拷贝或移动构造 | **直接构造，省略拷贝/移动** |
+| 性能      | 较慢（多一步构造）     | 较快（就地构造）            |
+| 使用场景  | 已有对象               | 直接传构造参数              |
 
-```c++
-#include <vector>
+#### vector 的内存释放为什么不一定及时？
+
+因为 `capacity()` 大于 `size()`，即使 `clear()` 也不会释放已分配内存，除非用 `shrink_to_fit()`。
+
+`shrink_to_fit()` 的行为与实际效果：
+
+尝试将 `vector` 的容量缩小到等于其大小，**释放多余的内存**。
+
+```cpp
+std::vector<int> v = {1, 2, 3, 4, 5};
+v.reserve(1000);          // 容量变大
+v.resize(5);              // 元素变少，但内存仍大
+v.shrink_to_fit();        // 请求回收未用内存
+```
+
+注意：它是 **non-binding request**
+
+- **标准并不保证一定释放内存**。
+- 实际是否释放取决于实现（libc++、libstdc++）和系统内存管理。
+- 一般通过新分配内存再拷贝元素实现（可能引发移动构造或拷贝构造）。
+
+#### 插入后使用原迭代器 / 指针
+
+**vector 的扩容或中间插入，会导致内存重新分配**，原来的指针、引用、迭代器就不再指向合法位置，**变成了“悬空指针/迭代器”**，继续使用会导致未定义行为（可能崩溃、访问垃圾值等）。
+
+```cpp
 #include <iostream>
-
-using namespace std;
+#include <vector>
 
 int main() {
-    vector<int> values{1, 2, 3};
-    cout << "大小：" << values.size() << endl;
-    cout << "容量：" << values.capacity() << endl;
-    // 把元素的个数变为参数指定的值，所以会增加两个用默认值初始化的元素
-    values.resize(5);
-    // 将元素增加到第一个参数指定的个数，并用第二个参数初始化增加的新元素
-    values.resize(7, 99);
-    // 第三个 resize() 凋用将容器大小设为 6，小于当前元素的个数。
-    // 当需要减小容器的大小时，会移除多余的元素，这就好像重复调用了几次 pop_back() 函数
-    // 减少容器的大小不会影响容器的容量
-    values.resize(6);
+    std::vector<int> v;
+    v.reserve(1);  // 先留一点空间，确保后续插入会触发扩容
+    v.push_back(1);
+    
+    int* p = &v[0];          // 获取元素地址
+    std::vector<int>::iterator it = v.begin();  // 获取迭代器
 
-    // 1 2 3 0 0 99
-    for (int i: values) {
-        cout << i << " ";
+    v.push_back(2);          // 扩容发生，vector 内部地址可能变了！
+
+    std::cout << *p << "\n"; // ❌ 悬空指针，未定义行为
+    std::cout << *it << "\n";// ❌ 悬空迭代器，未定义行为
+}
+```
+
+正确做法：
+
+1. 插入或扩容后重新获取迭代器/指针
+
+```cpp
+auto it = v.begin();
+v.push_back(42);       // 可能导致迭代器失效
+it = v.begin();        // 重新获取！
+```
+
+2. 不在迭代过程中插入或删除
+
+```cpp
+for (auto it = v.begin(); it != v.end(); ++it) {
+    if (*it == 3) {
+        // v.push_back(100); // ❌ 迭代器失效
     }
 }
 ```
 
-### 访问
+3. 如果必须插入，先收集再操作
 
-```c++
-#include <vector>
-#include <iostream>
+```cpp
+std::vector<int> v = {1, 2, 3};
+std::vector<int> to_add;
 
-using namespace std;
+for (int x : v) {
+    if (x % 2 == 1)
+        to_add.push_back(x * 10);  // 不在原 vector 中操作
+}
 
-int main() {
-    vector<int> values{1, 2, 3};
-    values[1] = 0;
-    // 以当索引可能越界时，应该通过 at() 函数去使用这个元素
-    values.at(2) = 3;
+v.insert(v.end(), to_add.begin(), to_add.end());  // 统一处理
+```
 
-    // front() 和 back() 分別返回序列中第一个和最后一个元素的引用
-    cout << values.front() << endl;
-    // 返回的是引用，所以可以出现在赋值运算符的左边
-    values.back() = 10;
+#### `vector<bool>` 奇葩在哪里？
 
-    // 成员函数 data() 返回一个指向数组的指针
-    // 一般来说，data() 返回 vector<T> 容器的 T* 类型的值
-    int *pInt = values.data();
+##### bool 占 1 字节太浪费
+
+在标准 `std::vector<T>` 中，每个元素是一个完整的 `T` 对象。
+
+但对 `bool` 类型来说，每个布尔值其实只需要 1 位，而 `sizeof(bool)` 是 1 字节，也就是 **用了 8 倍空间**，太浪费了！
+
+##### 设计目的：节省空间
+
+为了节省空间，标准库特意对 `vector<bool>` 做了**模板特化**（不是偏特化，是完整特化）：
+
+它不是 `vector<bool>` 的普通版本，而是这样的结构：
+
+```cpp
+template <>
+class vector<bool> {
+    // 使用位图压缩存储 bool（通常是 unsigned char 或 uint32_t）
+    std::vector<uint8_t> data_;
+    ...
+};
+```
+
+它不是真的存储了 `bool` 类型，而是用一个**按位压缩的位容器**来模拟布尔数组。
+
+比如：
+
+```cpp
+std::vector<bool> v = {true, false, true};
+```
+
+实际上在内部变成了一组位操作，比如：
+
+```cpp
+data_[0] = 0b00000101;
+```
+
+##### 带来的副作用
+
+###### 无法返回 `bool&`
+
+```cpp
+std::vector<bool> v = {true};
+bool* p = &v[0];  // 编译错误：不能取地址
+```
+
+因为它根本没有 `bool` 类型的内存，所以不能返回 `bool&`，也不能取地址。
+
+为了解决这个问题，标准库搞了一个**代理对象** `vector<bool>::reference`，实现 `operator bool()`、`operator=` 等，但依然不是原生 bool。
+
+###### 与泛型算法兼容性差
+
+```cpp
+template<typename T>
+void test(std::vector<T>& v) {
+    T* p = &v[0];  // vector<bool> 会报错
 }
 ```
 
-### 迭代器
+###### 不能安全和并发使用
 
-### 添加
+由于多个 `bool` 被压缩进一个 `byte`，单个元素修改涉及位操作，因此并发修改两个 `bool` 也可能互相影响（**位竞争条件**），不像 `vector<int>` 是原子独立的。
 
-```c++
-#include <vector>
-#include <iostream>
+##### 替代方案
 
-using namespace std;
-
-int main() {
-    vector<int> values{1, 2, 3};
-    values.push_back(12);
-    // emplace back() 比 push_back() 更有效率
-    // 可以在 emplace_back() 函数中使用尽可能多的参数，只要它们满足对象构造函数的要求
-    values.emplace_back(13);
-
-    // 1 2 3 12 13
-    for (auto i: values) {
-        cout << i << " ";
-    }
-}
-```
-
-### 插入
-
-通过使用成员函数 emplace()，可以在 vector 序列中插入新的元素。对象会在容器中直接生成，而不是先单独生成对象，然后再把它作为参数传入。
-
-```c++
-#include <vector>
-#include <iostream>
-#include <string>
-
-using namespace std;
-
-int main() {
-    vector<string> words{"first", "second"};
-    // emplace() 的第一个参数是一个迭代器，它确定了对象生成的位置
-    // 第一个参数后的参数，都作为插入元素的构造函数的参数传入。
-    // 在开头插入
-    auto iter = words.emplace(begin(words), 5, 'A');
-    // 在第一个元素后面插入
-    words.emplace(++iter, "$$$$");
-
-    // AAAAA $$$$ first second
-    for (const auto &i: words) {
-        cout << i << " ";
-    }
-}
-```
-
-```c++
-#include <vector>
-#include <iostream>
-#include <string>
-
-using namespace std;
-
-int main() {
-    vector<string> words{"one", "three", "eight"};
-    //  插入第二个参数指定的单个元素
-    // 返回的迭代器指向被插入的元素 "two"
-    auto iter = words.insert(++begin(words), "two");
-    // "one" "two" "three" "eight"
-    /*
-     * 在使用同样参数的情况下，调用 insert() 没有调用 emplace() 高效。
-     * 在 insert() 调用中，构造函数调用 string("two") 生成了一个对象，作为传入的第二个参数。
-     * 在 emplace() 调用中，构造函数用第二个参数直接在容器中生成了字符串对象。
-     */
-
-    // 插入一个由第二个和第三个参数指定的元素序列
-    string more[]{"five", "six", "seven"};
-    iter = words.insert(--end(words), begin(more), end(more));
-    // "one" "two" "three" "five" "six" "seven" "eight"
-
-    // 在 vector 的末尾插入一个元素
-    iter = words.insert(end(words), "ten");
-    // "one" "two" "three" "five" "six" "seven" "eight" "ten"
-
-    // 在插入点插入多个单个元素。第二个参数是第三个参数所指定对象的插入次数
-    iter = words.insert(cend(words)-1, 2, "nine");
-    // 返回的迭代器指向插入的第一个元素 "nine"
-    // "one" "two" "three" "five" "six" "seven" "eight" "nine" "nine" "ten"
-
-    //  在插入点，插入初始化列表指定的元素。第二个参数就是被插入元素的初始化列表
-    // 返回的迭代器指向插入的第一个元素"twelve"
-    iter = words.insert(end(words), {string {"twelve"},string {"thirteen"}});
-    // "one" "two" "three" "five" "six" "seven" "eight" "nine" "nine" "ten" "twelve" "thirteen"
-
-    for (const auto &i: words) {
-        cout << i << " ";
-    }
-}
-```
-
-所有不在 vector 尾部的插入点都会有开销，需要移动插入点后的所有元素，从而为新元素空出位置。当然，如果插入点后的元素个数超出了容量，容器会分配更多的内存，这会增加更多额外开销。
-
-### 删除
-
-`pop_back()`、`clear()`、`shrink_to_fit()`：
-
-```c++
-#include <vector>
-#include <algorithm>
-
-using namespace std;
-
-int main() {
-    vector<int> data{1, 2, 3, 4, 5};
-    // 1.将第二个元素和最后一个元素互相交换
-    swap(*(begin(data) + 1), *(end(data) - 1));
-    // vector: 1 5 3 4 2
-
-    // 2.移除末尾元素，相当于从容器中移除了第二个元素，大小变成4，容量为5
-    data.pop_back();
-    // vector: 1 5 3 4
-
-    // 3.移除所有元素，大小变成0，容量为5
-    data.clear();
-    // vector: 空
-
-    // 大小1，容量5
-    data.push_back(111);
-    // 4.去掉容器中多余的容量，大小1，容量1
-    data.shrink_to_fit();
-    // vector: 111
-}
-```
-
-`erase()`:
-
-```c++
-#include <vector>
-
-using namespace std;
-
-int main() {
-    vector<int> data{1, 2, 3, 4, 5};
-    // 1.删除第二个元素，会返回一个迭代器，它指向被删除元素后的一个元素
-    auto iter = data.erase(begin(data) + 1);
-
-    // 2.如果要移除一个元素序列，只需要传入两个迭代器，用来指定移除元素的范围
-    // 第二个迭代器指向这段元素末尾的下一个位置
-    // 删除前两个元素，返回被删除元素后的位置
-    iter = data.erase(begin(data), begin(data) + 2);
-}
-```
-
-`remove()`:
-
-```c++
-#include <vector>
-#include <algorithm>
-#include <string>
-
-using namespace std;
-
-int main() {
-    vector<string> words{"one", "none", "some", "all", "none", "most", "many"};
-    // 在头两个参数指定的元素范围内，移除了所有匹配 remove() 的第三个参数 string("none") 的元素
-    auto iter = remove(begin(words), end(words), "none");
-
-    //  remove() 操作后输出 words 中的元素，只会输出前 5 个元素。
-    //  尽管 size() 返回的值仍然是 7，而且最后两个元素仍然存在，但是它们被替换成了空字符串对象。
-    //  为了摆脱这些多余的元素，可以使用成员函数 erase() 删除后面的空字符串对象
-    words.erase(iter, end(words));
-}
-```
-
-### reserve()、resize() 区别
-
-| **成员方法** | **功能**                                                     |
-| ------------ | ------------------------------------------------------------ |
-| capacity()   | 告诉我们当前 vector 容器总共可以容纳多少个元素。如果想知道当前 vector 容器有多少未被使用的存储空间，可以通过 capacity()-size() 得知。注意，如果 size() 和 capacity() 返回的值相同，则表明当前 vector 容器中没有可用存储空间了，这意味着，下一次向 vector 容器中添加新元素，将导致 vector 容器扩容。 |
-| size()       | 告诉我们当前 vector 容器中已经存有多少个元素，但仅通过此方法，无法得知 vector 容器有多少存储空间。 |
-| reserve(n)   | 强制 vector 容器的容量至少为 n。注意，如果 n 比当前 vector 容器的容量小，则该方法什么也不会做；反之如果 n 比当前 vector 容器的容量大，则 vector 容器就会扩容。 |
-
-- vector 的 `reserve` 增加了 vector 的 `capacity`，但是它的 `size` 没有改变。而 `resize` 改变了 vector 的 `capacity` 同时也增加了它的 `size`。
-- `reserve` 是容器预留空间，但在空间内不真正创建元素对象，所以在没有添加新的对象之前，不能引用容器内的元素。加入新的元素时，要调用 `push_back()` 等函数。
-- `resize` 是改变容器的大小，且在创建对象，因此，调用这个函数之后，就可以引用容器内的对象了，因此当加入新的元素时，用 `operator[]` 操作符，或者用迭代器来引用元素对象。此时再调用 `push_back()` 函数，是加在这个新的空间后面的。
-- 两个函数的参数形式也有区别的，`reserve` 函数之后一个参数，即需要预留的容器的空间；`resize` 函数可以有两个参数，第一个参数是容器新的大小，第二个参数是要加入容器中的新元素，如果这个参数被省略，那么就调用元素对象的默认构造函数。
+| 场景         | 推荐替代                                      |
+| ------------ | --------------------------------------------- |
+| 简单用法     | `std::vector<char>` or `std::vector<uint8_t>` |
+| 固定大小位集 | `std::bitset<N>`                              |
+| 可变大小位集 | `boost::dynamic_bitset`                       |
