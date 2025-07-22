@@ -106,3 +106,73 @@ public:
 };
 ```
 
+### queue 定义完整列表
+
+只要用已有容器封装并限制其接口，就能实现一个先进先出的队列（queue）。例如使用 deque，并禁止前端插入与尾端删除，就能形成 queue。SGI STL 默认用 deque 作为 queue 的底层容器，因此 queue 的实现非常简单，是一种容器适配器（adapter），不被归类为普通容器（container）。
+
+```cpp
+// queue 容器适配器模板，默认以 deque<T> 作为底层容器
+template <class T, class Sequence = deque<T> >
+class queue {
+    // 以下两个友元函数用于比较两个 queue 是否相等或小于
+    // __STL_NULL_TMPL_ARGS 会展开为 <>，这是为了解决旧编译器的模板兼容性问题
+    friend bool operator== __STL_NULL_TMPL_ARGS (const queue& x, const queue& y);
+    friend bool operator<  __STL_NULL_TMPL_ARGS (const queue& x, const queue& y);
+public:
+    // 类型定义，直接复用底层容器的定义
+    typedef typename Sequence::value_type        value_type;
+    typedef typename Sequence::size_type         size_type;
+    typedef typename Sequence::reference         reference;
+    typedef typename Sequence::const_reference   const_reference;
+
+protected:
+    Sequence c;  // 实际承载元素的底层容器（默认是 deque<T>）
+
+public:
+    // 判断 queue 是否为空
+    bool empty() const { return c.empty(); }
+
+    // 返回 queue 中元素数量
+    size_type size() const { return c.size(); }
+
+    // 访问队头元素（可以修改）
+    reference front() { return c.front(); }
+
+    // 访问队头元素（只读）
+    const_reference front() const { return c.front(); }
+
+    // 访问队尾元素（可以修改）
+    reference back() { return c.back(); }
+
+    // 访问队尾元素（只读）
+    const_reference back() const { return c.back(); }
+
+    // 插入元素到队尾（入队）
+    void push(const value_type& x) { c.push_back(x); }
+
+    // 移除队头元素（出队）
+    void pop() { c.pop_front(); }
+};
+
+// 比较两个 queue 是否相等（元素逐一比较）
+template <class T, class Sequence>
+bool operator==(const queue<T, Sequence>& x, const queue<T, Sequence>& y) {
+    return x.c == y.c;
+}
+
+// 比较两个 queue 的大小（按元素字典序比较）
+template <class T, class Sequence>
+bool operator<(const queue<T, Sequence>& x, const queue<T, Sequence>& y) {
+    return x.c < y.c;
+}
+```
+
+- `queue` 是 **容器适配器（container adapter）**，不是标准容器（如 vector、deque、list）。
+- 它通过封装一个底层容器（默认是 `deque`）来实现「先进先出」的行为。
+- 所有操作如 `push`、`pop`、`front`、`back` 都直接调用底层容器的对应接口。
+- 实现非常简洁，只是对底层容器做了接口限制和方向控制。
+- 除了 `deque`，`list` 也是双向开口的结构。前面 `queue` 使用的底层容器接口（如 `empty`、`size`、`back`、`push_back`、`pop_back`）在 `list` 中也都具备。
+
+### queue 没有迭代器
+
+`queue` 所有元素必须遵循「先进先出」原则，只有最前面的元素可以被访问。它不支持遍历操作，也不提供迭代器。
