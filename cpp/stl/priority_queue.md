@@ -273,3 +273,83 @@ public:
 | ---------------- | ---------------------- | ---------------------- |
 | `std::sort`      | `a < b`                | 升序排序               |
 | `priority_queue` | `std::less`（`a < b`） | 最大堆，弹出顺序是降序 |
+
+### priority_queue 定义完整列表
+
+`priority_queue` 是基于底层容器（默认是 `vector`）和 heap 规则实现的，因此源码非常简洁。它本质上只是包装了底层容器的一层接口，这种通过修改接口形成新功能的方式称为 **适配器（adapter）**，因此 `priority_queue` 被归类为 **容器适配器**，而不是普通容器。
+
+```cpp
+template <class T, class Sequence = vector<T>,
+          class Compare = less<typename Sequence::value_type> >
+class priority_queue {
+public:
+    typedef typename Sequence::value_type value_type;           // 元素类型
+    typedef typename Sequence::size_type size_type;             // 容器大小类型
+    typedef typename Sequence::reference reference;             // 元素引用类型
+    typedef typename Sequence::const_reference const_reference; // 元素常量引用类型
+
+protected:
+    Sequence c;     // 底层容器，默认是 vector<T>
+    Compare comp;   // 元素比较器，默认是 less，形成最大堆（最大值优先）
+
+public:
+    // 默认构造函数，创建空 priority_queue
+    priority_queue() : c() {}
+
+    // 指定比较器的构造函数，创建空 priority_queue 并设置比较器
+    explicit priority_queue(const Compare& x) : c(), comp(x) {}
+
+    // 通过区间 [first, last) 构造 priority_queue，并根据 comp 构建 heap
+    template <class InputIterator>
+    priority_queue(InputIterator first, InputIterator last, const Compare& x)
+        : c(first, last), comp(x) {
+        make_heap(c.begin(), c.end(), comp); // 生成堆结构
+    }
+
+    // 通过区间 [first, last) 构造 priority_queue，使用默认比较器 comp
+    template <class InputIterator>
+    priority_queue(InputIterator first, InputIterator last)
+        : c(first, last) {
+        make_heap(c.begin(), c.end(), comp); // 生成堆结构
+    }
+
+    // 判断是否为空
+    bool empty() const { return c.empty(); }
+
+    // 返回元素个数
+    size_type size() const { return c.size(); }
+
+    // 访问堆顶元素（优先级最高的元素）
+    const_reference top() const { return c.front(); }
+
+    // 插入元素
+    void push(const value_type& x) {
+        __STL_TRY {
+            c.push_back(x);                      // 先将元素加到底层容器末尾
+            push_heap(c.begin(), c.end(), comp);// 调用泛型算法调整堆（上溯）
+        }
+        __STL_UNWIND(c.clear()); // 异常处理：若发生异常，清空容器
+    }
+
+    // 弹出堆顶元素
+    void pop() {
+        __STL_TRY {
+            pop_heap(c.begin(), c.end(), comp); // 调用泛型算法调整堆（下溯），最大元素移到末尾
+            c.pop_back();                       // 弹出底层容器末尾元素（真正移除最大值）
+        }
+        __STL_UNWIND(c.clear()); // 异常处理：若发生异常，清空容器
+    }
+};
+```
+
+- 这里的 `typename` 是必须的，用来告诉编译器 `Sequence::value_type` 是一个类型，而不是静态成员或其他东西。
+  - `Sequence` 是模板参数，编译器在模板解析阶段不知道 `Sequence::value_type` 是类型还是变量。
+  - `typename` 关键字明确指出后面跟的是“类型”，这样编译器才会正确处理。
+- `priority_queue` 是基于底层容器（默认 `vector`）和比较器实现的容器适配器；
+- 构造时调用 `make_heap` 建堆，`push` 时调用 `push_heap` 上溯插入元素，`pop` 时调用 `pop_heap` 下溯调整堆并弹出元素；
+- `top()` 返回堆顶元素，即优先级最高的元素；
+- 异常安全处理通过 `__STL_TRY` 和 `__STL_UNWIND` 保证。
+
+### priority_queue 沒有迭代器
+
+priority_queue 中只有堆顶元素（权值最高）能被访问和取出，其他元素不能直接访问，也没有迭代器提供遍历功能。
