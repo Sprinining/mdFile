@@ -140,3 +140,201 @@ int main() {
 
 - **`multiset`**：与 `set` 类似，但允许重复元素。底层依然使用平衡二叉树。
 - **性能优化**：在需要频繁查找或删除的场景下，`set` 是比 `vector` 或 `list` 更高效的选择。
+
+### 源码
+
+- 元素按键值自动排序，且**键值就是实值**，不允许重复。
+- 不能通过迭代器修改元素值，因为修改会破坏排序规则，`set<T>::iterator` 实际是底层红黑树的 `const_iterator`。
+- 插入或删除元素时，除被删除元素外，其他迭代器依然有效。
+- 提供交集、并集、差集、对称差集等算法。
+- 底层实现为 **红黑树**，set 的操作基本是转调用红黑树的接口。
+
+```cpp
+// set 的模板定义
+template <class Key,                    // 元素类型（键类型）
+          class Compare = less<Key>,    // 比较规则（缺省递增排序）
+          class Alloc = alloc>          // 空间配置器
+class set {
+public:
+    // --------------------
+    // 类型定义（typedefs）
+    // --------------------
+    typedef Key key_type;               // 键类型
+    typedef Key value_type;             // 元素类型（set 的元素键值即实值）
+    typedef Compare key_compare;        // 键的比较函数
+    typedef Compare value_compare;      // 元素的比较函数（和键比较相同）
+
+private:
+    /*
+     identity 定义在 <stl_function.h>：
+     template<class T>
+     struct identity : public unary_function<T, T> {
+         const T& operator()(const T& x) const { return x; }
+     };
+     identity 用于在底层红黑树中将 value_type 映射为 key_type
+     因为 set 的键值和实值相同，所以直接返回元素本身即可。
+    */
+
+    // 底层容器类型：红黑树
+    typedef rb_tree<key_type, value_type,
+                    identity<value_type>, // 键值提取器
+                    key_compare,          // 比较规则
+                    Alloc> rep_type;
+
+    rep_type t; // 用红黑树实现 set
+
+public:
+    // --------------------
+    // 指针与引用类型
+    // --------------------
+    typedef typename rep_type::const_pointer pointer;
+    typedef typename rep_type::const_pointer const_pointer;
+    typedef typename rep_type::const_reference reference;
+    typedef typename rep_type::const_reference const_reference;
+
+    // 注意：iterator 定义为红黑树的 const_iterator
+    // 这意味着 set 迭代器不能修改元素值（因为修改会破坏排序规则）
+    typedef typename rep_type::const_iterator iterator;
+    typedef typename rep_type::const_iterator const_iterator;
+    typedef typename rep_type::const_reverse_iterator reverse_iterator;
+    typedef typename rep_type::const_reverse_iterator const_reverse_iterator;
+    typedef typename rep_type::size_type size_type;
+    typedef typename rep_type::difference_type difference_type;
+
+    // --------------------
+    // 构造函数
+    // --------------------
+    set() : t(Compare()) {}
+    explicit set(const Compare& comp) : t(comp) {}
+
+    template <class InputIterator>
+    set(InputIterator first, InputIterator last)
+        : t(Compare()) { t.insert_unique(first, last); }
+
+    template <class InputIterator>
+    set(InputIterator first, InputIterator last, const Compare& comp)
+        : t(comp) { t.insert_unique(first, last); }
+
+    set(const set<Key, Compare, Alloc>& x) : t(x.t) {}
+
+    set<Key, Compare, Alloc>& operator=(const set<Key, Compare, Alloc>& x) {
+        t = x.t;
+        return *this;
+    }
+
+    // --------------------
+    // 访问器
+    // --------------------
+    key_compare key_comp() const { return t.key_comp(); }
+    value_compare value_comp() const { return t.key_comp(); } // 实际上和 key_comp 相同
+
+    iterator begin() const { return t.begin(); }
+    iterator end() const { return t.end(); }
+    reverse_iterator rbegin() const { return t.rbegin(); }
+    reverse_iterator rend() const { return t.rend(); }
+
+    bool empty() const { return t.empty(); }
+    size_type size() const { return t.size(); }
+    size_type max_size() const { return t.max_size(); }
+
+    void swap(set<Key, Compare, Alloc>& x) { t.swap(x.t); }
+
+    // --------------------
+    // 插入操作（使用 insert_unique，保证键唯一）
+    // --------------------
+    typedef pair<iterator, bool> pair_iterator_bool;
+
+    pair<iterator, bool> insert(const value_type& x) {
+        pair<typename rep_type::iterator, bool> p = t.insert_unique(x);
+        return pair<iterator, bool>(p.first, p.second);
+    }
+
+    iterator insert(iterator position, const value_type& x) {
+        typedef typename rep_type::iterator rep_iterator;
+        return t.insert_unique((rep_iterator&)position, x);
+    }
+
+    template <class InputIterator>
+    void insert(InputIterator first, InputIterator last) {
+        t.insert_unique(first, last);
+    }
+
+    // --------------------
+    // 删除操作
+    // --------------------
+    void erase(iterator position) {
+        typedef typename rep_type::iterator rep_iterator;
+        t.erase((rep_iterator&)position);
+    }
+
+    size_type erase(const key_type& x) {
+        return t.erase(x);
+    }
+
+    void erase(iterator first, iterator last) {
+        typedef typename rep_type::iterator rep_iterator;
+        t.erase((rep_iterator&)first, (rep_iterator&)last);
+    }
+
+    void clear() { t.clear(); }
+
+    // --------------------
+    // 查找与范围操作
+    // --------------------
+    iterator find(const key_type& x) const { return t.find(x); }
+    size_type count(const key_type& x) const { return t.count(x); }
+
+    iterator lower_bound(const key_type& x) const { return t.lower_bound(x); }
+    iterator upper_bound(const key_type& x) const { return t.upper_bound(x); }
+
+    pair<iterator, iterator> equal_range(const key_type& x) const {
+        return t.equal_range(x);
+    }
+
+    // --------------------
+    // 比较操作符
+    // --------------------
+    friend bool operator==(const set& x, const set& y) {
+        return x.t == y.t;
+    }
+    friend bool operator<(const set& x, const set& y) {
+        return x.t < y.t;
+    }
+    // 以下的 __STL_NULL_TMPL_ARGS 被定义为 <>
+	// 这里的写法是为了兼容旧式 C++ 编译器的模板语法
+	// 相当于 template<>，但写成宏方便统一修改
+	operator== __STL_NULL_TMPL_ARGS (const set&, const set&);
+	operator<  __STL_NULL_TMPL_ARGS (const set&, const set&);
+};
+
+// 上面只是声明，下面才是定义
+
+// 判断两个 set 是否相等（底层红黑树相等）
+template <class Key, class Compare, class Alloc>
+inline bool operator==(const set<Key, Compare, Alloc>& x,
+                       const set<Key, Compare, Alloc>& y) {
+    return x.t == y.t;
+}
+
+// 判断一个 set 是否小于另一个 set（按底层红黑树的字典序比较）
+template <class Key, class Compare, class Alloc>
+inline bool operator<(const set<Key, Compare, Alloc>& x,
+                      const set<Key, Compare, Alloc>& y) {
+    return x.t < y.t;
+}
+```
+
+- **set 的底层容器是红黑树 (`rb_tree`)**
+
+  - 元素按键值自动排序。
+
+  - 不允许重复（`insert_unique`）。
+
+- **迭代器是 const_iterator**
+  - 不能修改元素值，因为键值就是实值，改了会破坏红黑树结构。
+
+- **接口几乎都是转调用红黑树的方法**
+  - 插入、删除、查找、范围查询等操作全部委托给 `rb_tree`。
+
+- **identity 函数对象**
+  - 用于把元素值直接当作键值返回。
