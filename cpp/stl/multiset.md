@@ -162,3 +162,79 @@ ms.erase(5);  // 删除所有值为 5 的元素
 - 如果不需要重复元素，请使用 `std::set`。
 - 对于频繁插入和查找的情况，`multiset` 由于其平衡二叉树的结构，可以提供较高的性能。
 - 如果需要按 `value` 排序，可以先将 `multiset` 转换为 `vector`，再用 `std::sort()` 排序。
+
+### multiset 源码提要（与 set 的不同点）
+
+```cpp
+// multiset 的特性与 set 几乎完全相同，唯一差别：允许键值重复
+// 因此所有插入操作使用底层 RB-tree 的 insert_equal() 而非 insert_unique()
+
+template <class Key, class Compare = less<Key>, class Alloc = alloc>
+class multiset {
+public:
+    // typedefs（与 set 相同，不再重复列出）
+    // ...
+    
+    //===============================
+    // 构造函数（与 set 相比，构造时插入调用 insert_equal）
+    //===============================
+
+    // 构造函数：用迭代器区间初始化，比较器使用默认 Compare()
+    // 注意：底层调用 t.insert_equal()，允许重复键值
+    template <class InputIterator>
+    multiset(InputIterator first, InputIterator last)
+        : t(Compare()) 
+    { 
+        t.insert_equal(first, last); 
+    }
+
+    // 构造函数：用迭代器区间初始化，并自定义 Compare 比较器
+    template <class InputIterator>
+    multiset(InputIterator first, InputIterator last, const Compare& comp)
+        : t(comp) 
+    { 
+        t.insert_equal(first, last); 
+    }
+
+    // ...（其它成员与 set 相同）
+    
+    //===============================
+    // 插入操作（与 set 最大区别：调用 insert_equal）
+    //===============================
+
+    // 单元素插入，允许重复键值
+    iterator insert(const value_type& x) {
+        return t.insert_equal(x);
+    }
+
+    // 提供“插入位置”提示的插入（效率可能提高）
+    iterator insert(iterator position, const value_type& x) {
+        typedef typename rep_type::iterator rep_iterator;
+        return t.insert_equal((rep_iterator&)position, x);
+    }
+
+    // 区间插入
+    template <class InputIterator>
+    void insert(InputIterator first, InputIterator last) {
+        t.insert_equal(first, last);
+    }
+
+    // ...（其它与 set 相同）
+    
+private:
+    // 底层红黑树（与 set 相同）
+    rep_type t;  
+};
+```
+
+- **允许重复键值**
+
+  - `set` 调用 `insert_unique()`，不允许插入相同键。
+
+  - `multiset` 调用 `insert_equal()`，允许重复键。
+
+- **插入函数**
+  - 构造函数、`insert()`、`insert(position, value)`、`insert(first, last)` 全部改为 `insert_equal()`。
+
+- **底层实现**
+  - `t` 是红黑树（RB-tree）对象，`insert_equal()` 会在相同键值的元素后面插入新节点，不会拒绝重复。

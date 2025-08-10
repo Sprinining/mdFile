@@ -150,3 +150,54 @@ std::sort(vec.begin(), vec.end(), [](const auto& a, const auto& b) {
 
 - **使用场景**：`std::multimap` 非常适用于需要存储一个键对应多个值的场景，例如：学生成绩（同一科目多次成绩）、订单商品（一个订单可能包含多个相同商品）。
 - 如果不需要重复的 key，可以使用 `std::map`，这会提供更高的性能和简化的逻辑。
+
+### multimap 源码提要（只列出与 map 不同之处）
+
+```cpp
+template <class Key, class T, class Compare = less<Key>, class Alloc = alloc>
+class multimap {
+public:
+    // typedefs：
+    // ...(与 set 相同)
+
+    // allocation / deallocation
+    // 注意：multimap 一定使用 insert_equal() 而不使用 insert_unique()
+    //       map 才使用 insert_unique()
+
+    // 构造函数
+    template <class InputIterator>
+    multimap(InputIterator first, InputIterator last)
+        : t(Compare()) {
+        t.insert_equal(first, last);
+    }
+
+    template <class InputIterator>
+    multimap(InputIterator first, InputIterator last, const Compare& comp)
+        : t(comp) {
+        t.insert_equal(first, last);
+    }
+
+    // insert / erase
+    iterator insert(const value_type& x) {
+        return t.insert_equal(x);
+    }
+
+    iterator insert(iterator position, const value_type& x) {
+        return t.insert_equal(position, x);
+    }
+
+    template <class InputIterator>
+    void insert(InputIterator first, InputIterator last) {
+        t.insert_equal(first, last);
+    }
+
+    // ...(其它与 map 相同)
+};
+```
+
+- **特性**：
+   `multimap` 的特性和用法与 `map` 完全相同，唯一的差别在于 **允许键值重复**。
+   因此它的插入操作采用底层机制 **RB-tree** 的 `insert_equal()`，而非 `insert_unique()`。
+- **区别总结**：
+  - `map` → 使用 `insert_unique()`，不允许相同键值。
+  - `multimap` → 使用 `insert_equal()`，允许相同键值。
