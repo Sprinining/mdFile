@@ -238,3 +238,138 @@ private:
 
 - **底层实现**
   - `t` 是红黑树（RB-tree）对象，`insert_equal()` 会在相同键值的元素后面插入新节点，不会拒绝重复。
+
+### 源码
+
+```cpp
+// hash_multiset
+// 特性：与 multiset 相同，但底层使用 hashtable 存储，元素不会自动排序。
+// 区别：
+//   - hash_multiset 使用 hashtable::insert_equal()，允许键值重复
+//   - hash_set 使用 hashtable::insert_unique()，不允许键值重复
+// 注意：hashtable 对某些类型需要用户提供哈希函数，否则无法使用。
+
+template <
+    class Value,
+    class HashFcn   = hash<Value>,     // 哈希函数
+    class EqualKey  = equal_to<Value>, // 键值相等判断
+    class Alloc     = alloc            // 内存分配器
+>
+class hash_multiset {
+private:
+    typedef hashtable<
+        Value,               // key
+        Value,               // value
+        HashFcn,              // 哈希函数
+        identity<Value>,      // key 提取方式（恒等）
+        EqualKey,             // key 比较
+        Alloc                 // 分配器
+    > ht;
+
+    ht rep; // 底层 hashtable
+
+public:
+    // 类型定义
+    typedef typename ht::key_type         key_type;
+    typedef typename ht::value_type       value_type;
+    typedef typename ht::hasher           hasher;
+    typedef typename ht::key_equal        key_equal;
+    typedef typename ht::size_type        size_type;
+    typedef typename ht::difference_type  difference_type;
+    typedef typename ht::const_pointer    pointer;
+    typedef typename ht::const_pointer    const_pointer;
+    typedef typename ht::const_reference  reference;
+    typedef typename ht::const_reference  const_reference;
+    typedef typename ht::const_iterator   iterator;
+    typedef typename ht::const_iterator   const_iterator;
+
+    // 获取哈希函数与比较器
+    hasher hash_funct() const { return rep.hash_funct(); }
+    key_equal key_eq() const { return rep.key_eq(); }
+
+public:
+    // 构造函数
+    hash_multiset() : rep(100, hasher(), key_equal()) {}
+    explicit hash_multiset(size_type n) : rep(n, hasher(), key_equal()) {}
+    hash_multiset(size_type n, const hasher& hf) : rep(n, hf, key_equal()) {}
+    hash_multiset(size_type n, const hasher& hf, const key_equal& eql)
+        : rep(n, hf, eql) {}
+
+    // 区间构造
+    template <class InputIterator>
+    hash_multiset(InputIterator f, InputIterator l)
+        : rep(100, hasher(), key_equal()) { rep.insert_equal(f, l); }
+
+    template <class InputIterator>
+    hash_multiset(InputIterator f, InputIterator l, size_type n)
+        : rep(n, hasher(), key_equal()) { rep.insert_equal(f, l); }
+
+    template <class InputIterator>
+    hash_multiset(InputIterator f, InputIterator l, size_type n, const hasher& hf)
+        : rep(n, hf, key_equal()) { rep.insert_equal(f, l); }
+
+    template <class InputIterator>
+    hash_multiset(InputIterator f, InputIterator l, size_type n,
+                  const hasher& hf, const key_equal& eql)
+        : rep(n, hf, eql) { rep.insert_equal(f, l); }
+
+public:
+    // 容量
+    size_type size() const { return rep.size(); }
+    size_type max_size() const { return rep.max_size(); }
+    bool empty() const { return rep.empty(); }
+
+    // 交换
+    void swap(hash_multiset& hs) { rep.swap(hs.rep); }
+    
+    // 友元声明（定义在类外）
+    friend bool operator== __STL_NULL_TMPL_ARGS(const hash_multiset&,
+                       const hash_multiset&) ;
+
+    // 迭代器
+    iterator begin() const { return rep.begin(); }
+    iterator end() const { return rep.end(); }
+
+public:
+    // 插入（允许重复键值）
+    iterator insert(const value_type& obj) { return rep.insert_equal(obj); }
+
+    template <class InputIterator>
+    void insert(InputIterator f, InputIterator l) { rep.insert_equal(f, l); }
+
+    // 插入但不扩容
+    iterator insert_noresize(const value_type& obj) {
+        return rep.insert_equal_noresize(obj);
+    }
+
+    // 查找与统计
+    iterator find(const key_type& key) const { return rep.find(key); }
+    size_type count(const key_type& key) const { return rep.count(key); }
+    pair<iterator, iterator> equal_range(const key_type& key) const {
+        return rep.equal_range(key);
+    }
+
+    // 删除
+    size_type erase(const key_type& key) { return rep.erase(key); }
+    void erase(iterator it) { rep.erase(it); }
+    void erase(iterator f, iterator l) { rep.erase(f, l); }
+
+    // 清空
+    void clear() { rep.clear(); }
+
+public:
+    // 桶相关操作
+    void resize(size_type hint) { rep.resize(hint); }
+    size_type bucket_count() const { return rep.bucket_count(); }
+    size_type max_bucket_count() const { return rep.max_bucket_count(); }
+    size_type elems_in_bucket(size_type n) const { return rep.elems_in_bucket(n); }
+};
+
+// 友元函数在类外实现
+template <class Val, class HashFcn, class EqualKey, class Alloc>
+inline bool operator==(const hash_multiset<Val, HashFcn, EqualKey, Alloc>& hs1,
+                       const hash_multiset<Val, HashFcn, EqualKey, Alloc>& hs2) {
+    return hs1.rep == hs2.rep;
+}
+```
+

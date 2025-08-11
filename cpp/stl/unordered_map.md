@@ -430,3 +430,213 @@ Bucket 6:
 Bucket 7: one
 ```
 
+### SGI STL `hash_map`
+
+#### 定位与实现
+
+- **STL 标准**：`map` 定义了接口和复杂度要求，但不限定实现。
+- **常见实现**：`map` 多数以 **红黑树（RB-tree）** 实现。
+- **SGI STL 扩展**：额外提供 `hash_map`，底层用 **hashtable** 实现。
+
+#### 实现特点
+
+- `hash_map` 的大部分操作都是**转调用**底层 `hashtable` 的对应函数。
+- 底层不同：
+  - **RB-tree**：元素有序，支持自动排序。
+  - **hashtable**：元素无序，不保证遍历顺序。
+
+#### 功能与用途
+
+- `map` / `hash_map` 都可根据 **键值（key）** 快速查找元素。
+- **map** 的有序性适合需要按顺序遍历的场景。
+- **hash_map** 更适合仅关心查找/插入效率（平均 O(1)）的场景。
+
+#### 键值与实值
+
+- `map` 元素由 **键值（key）** 和 **实值（value）** 组成。
+- `hash_map` 同样是 **key-value 对** 结构。
+
+#### 限制
+
+- 如果底层 `hashtable` 不能处理某种类型（例如缺少该类型的 `hash function`），
+  - `hash_map` 也不能处理，
+  - 需要用户提供自定义 `hash` 函数。
+
+### 源码
+
+```cpp
+// 以下的 hash<> 是函数对象，定义在 <stl_hash_fun.h>
+// 例：hash<int>::operator()(int x) const { return x; }
+// 用来生成某个 key 的哈希值
+template <
+    class Key,                            // 键类型
+    class T,                              // 映射值类型
+    class HashFcn = hash<Key>,            // 哈希函数
+    class EqualKey = equal_to<Key>,       // 判断键相等的函数对象
+    class Alloc = alloc                   // 内存分配器
+>
+class hash_map {
+private:
+    // select1st：函数对象，定义在 <stl_function.h>
+    // 作用：从 pair<const Key, T> 中提取 first 作为 key
+    typedef hashtable<
+        pair<const Key, T>,               // 节点存储的类型（键值对）
+        Key,                               // key_type
+        HashFcn,                           // 哈希函数
+        select1st<pair<const Key, T> >,    // 从 value_type 中取出 key 的方法
+        EqualKey,                          // 键值比较方式
+        Alloc                              // 内存分配器
+    > ht;
+
+    ht rep; // 底层机制是 hashtable
+
+public:
+    // 类型别名（大多直接复用 hashtable 的）
+    typedef typename ht::key_type        key_type;
+    typedef T                            data_type;    // 与标准 map 一致
+    typedef T                            mapped_type;  // 标准 map 命名
+    typedef typename ht::value_type      value_type;   // pair<const Key, T>
+    typedef typename ht::hasher          hasher;
+    typedef typename ht::key_equal       key_equal;
+
+    typedef typename ht::size_type       size_type;
+    typedef typename ht::difference_type difference_type;
+    typedef typename ht::pointer         pointer;
+    typedef typename ht::const_pointer   const_pointer;
+    typedef typename ht::reference       reference;
+    typedef typename ht::const_reference const_reference;
+    typedef typename ht::iterator        iterator;
+    typedef typename ht::const_iterator  const_iterator;
+
+    // 获取当前使用的哈希函数
+    hasher hash_funct() const { return rep.hash_funct(); }
+    // 获取当前使用的键比较函数
+    key_equal key_eq() const { return rep.key_eq(); }
+
+public:
+    // ===============================
+    // 构造函数
+    // ===============================
+    // 默认构造：初始容量 100（会调整为 >=100 的最小质数）
+    hash_map() : rep(100, hasher(), key_equal()) {}
+
+    explicit hash_map(size_type n)
+        : rep(n, hasher(), key_equal()) {}
+
+    hash_map(size_type n, const hasher& hf)
+        : rep(n, hf, key_equal()) {}
+
+    hash_map(size_type n, const hasher& hf, const key_equal& eql)
+        : rep(n, hf, eql) {}
+
+    // 迭代器区间构造（插入时调用 insert_unique，不允许重复键）
+    template <class InputIterator>
+    hash_map(InputIterator f, InputIterator l)
+        : rep(100, hasher(), key_equal()) { rep.insert_unique(f, l); }
+
+    template <class InputIterator>
+    hash_map(InputIterator f, InputIterator l, size_type n)
+        : rep(n, hasher(), key_equal()) { rep.insert_unique(f, l); }
+
+    template <class InputIterator>
+    hash_map(InputIterator f, InputIterator l, size_type n, const hasher& hf)
+        : rep(n, hf, key_equal()) { rep.insert_unique(f, l); }
+
+    template <class InputIterator>
+    hash_map(InputIterator f, InputIterator l, size_type n,
+             const hasher& hf, const key_equal& eql)
+        : rep(n, hf, eql) { rep.insert_unique(f, l); }
+
+public:
+    // ===============================
+    // 容量相关
+    // ===============================
+    size_type size() const { return rep.size(); }
+    size_type max_size() const { return rep.max_size(); }
+    bool empty() const { return rep.empty(); }
+
+    // 交换两个 hash_map
+    void swap(hash_map& hs) { rep.swap(hs.rep); }
+
+    // 友元声明（定义在类外）
+    friend bool operator== __STL_NULL_TMPL_ARGS
+        (const hash_map& hm1, const hash_map& hm2);
+
+    // ===============================
+    // 迭代器相关
+    // ===============================
+    iterator begin() { return rep.begin(); }
+    iterator end() { return rep.end(); }
+    const_iterator begin() const { return rep.begin(); }
+    const_iterator end() const { return rep.end(); }
+
+public:
+    // ===============================
+    // 插入操作（不允许重复 key）
+    // ===============================
+    pair<iterator, bool> insert(const value_type& obj) {
+        return rep.insert_unique(obj);
+    }
+
+    template <class InputIterator>
+    void insert(InputIterator f, InputIterator l) {
+        rep.insert_unique(f, l);
+    }
+
+    // 不触发扩容的插入
+    pair<iterator, bool> insert_noresize(const value_type& obj) {
+        return rep.insert_unique_noresize(obj);
+    }
+
+    // ===============================
+    // 查找 / 访问
+    // ===============================
+    iterator find(const key_type& key) { return rep.find(key); }
+    const_iterator find(const key_type& key) const { return rep.find(key); }
+
+    // 下标运算符：若 key 不存在，则插入 key 对应的 value_type(key, T())
+    T& operator[](const key_type& key) {
+        return rep.find_or_insert(value_type(key, T())).second;
+    }
+
+    size_type count(const key_type& key) const { return rep.count(key); }
+
+    pair<iterator, iterator> equal_range(const key_type& key) {
+        return rep.equal_range(key);
+    }
+
+    pair<const_iterator, const_iterator> equal_range(const key_type& key) const {
+        return rep.equal_range(key);
+    }
+
+    // ===============================
+    // 删除
+    // ===============================
+    size_type erase(const key_type& key) { return rep.erase(key); }
+    void erase(iterator it) { rep.erase(it); }
+    void erase(iterator f, iterator l) { rep.erase(f, l); }
+
+    // 清空
+    void clear() { rep.clear(); }
+
+public:
+    // ===============================
+    // 桶相关操作（hash table 专有）
+    // ===============================
+    void resize(size_type hint) { rep.resize(hint); }
+    size_type bucket_count() const { return rep.bucket_count(); }
+    size_type max_bucket_count() const { return rep.max_bucket_count(); }
+    size_type elems_in_bucket(size_type n) const { return rep.elems_in_bucket(n); }
+};
+
+// ===============================
+// 类外比较运算符（定义）
+// ===============================
+template <class Key, class T, class HashFcn, class EqualKey, class Alloc>
+inline bool operator==(
+    const hash_map<Key, T, HashFcn, EqualKey, Alloc>& hm1,
+    const hash_map<Key, T, HashFcn, EqualKey, Alloc>& hm2) {
+    return hm1.rep == hm2.rep;
+}
+```
+
