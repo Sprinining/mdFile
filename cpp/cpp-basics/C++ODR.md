@@ -1,4 +1,4 @@
-## C++ODR
+## C++ ODR
 
 **ODR = One Definition Rule**，字面意思是：
 
@@ -25,7 +25,7 @@
   - 必须是 **允许多定义的实体**：如 `inline` 函数、模板、`inline static` 成员变量等
   - 编译器和链接器要能把它们“合并成一个”定义
 
-### 举例
+### 示例
 
 #### ODR 合法示例：`inline` 函数
 
@@ -46,7 +46,7 @@ inline void sayHello() {
 
 ```cpp
 // foo.h
-void sayHello() { std::cout << "Hello\n"; } // 没有 inline ❌
+void sayHello() { std::cout << "Hello\n"; } // 没有 inline
 ```
 
 ```cpp
@@ -63,7 +63,7 @@ multiple definition of `sayHello()`
 
 ```cpp
 // foo.h
-int g_counter = 0; // ❌ 多个 .cpp 引用会造成重复定义
+int g_counter = 0; // 多个 .cpp 引用会造成重复定义
 ```
 
 ```cpp
@@ -79,11 +79,11 @@ extern int g_counter; // foo.h
 template <typename T>
 class A {
 public:
-    void f() { std::cout << "A\n"; } // 若 a.cpp 和 b.cpp 中不一样，就违反 ODR
+    void f() { std::cout << "A\n"; } // 若分别在 a.cpp 和 b.cpp 中写一份，且不一样，就违反 ODR
 };
 ```
 
-所有模板的定义都要在 header 中完全一致。否则多个 TU 中的版本不同，会违反 ODR。
+为了避免违反 ODR，模板的定义必须写在头文件中，这样所有包含它的翻译单元都会看到完全相同的定义。
 
 ### ODR 相关的特殊关键字
 
@@ -98,17 +98,13 @@ public:
 
 常见建议：
 
-所有变量定义放在 `.cpp`，声明用 `extern` 放头文件。
+- 所有变量定义放在 `.cpp`，声明用 `extern` 放头文件。
+- 模板定义全部放在 `.h` 文件中。
+- 如果函数会在多个 `.cpp` 中使用，加上 `inline`。
+- 用 `#pragma once` 或 include guard 防止重复包含。
+- 类静态变量推荐用 `inline static`（C++17 起）。
 
-模板定义全部放在 `.h` 文件中。
-
-如果函数会在多个 `.cpp` 中使用，加上 `inline`。
-
-用 `#pragma once` 或 include guard 防止重复包含。
-
-类静态变量推荐用 `inline static`（C++17 起）。
-
-### C++声明和定义为何要分开
+### C++ 声明和定义为何要分开
 
 这是 C++ 设计中的一个非常重要原则，**声明（declaration）和定义（definition）分开的原因**，主要是为了支持**多文件编程、编译依赖管理和链接过程**。
 
