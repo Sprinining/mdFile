@@ -1,18 +1,18 @@
-## C++深拷贝浅拷贝
+## C++ 深拷贝浅拷贝
 
-在 C++ 中，**深拷贝（deep copy）\**和\**浅拷贝（shallow copy）\**是对象复制时的两个重要概念，尤其在类中含有\**指针成员**时特别关键。
+在 C++ 中，**深拷贝（deep copy）**和**浅拷贝（shallow copy）**是对象复制时的两个重要概念，尤其在类中含有**指针成员**时特别关键。
 
-### 浅拷贝（Shallow Copy）
+### 浅拷贝
 
 - 拷贝的是**指针的值**，也就是让两个对象**共享同一块内存**。
 
 - 如果一个对象释放了内存，另一个对象指针就成了**悬垂指针**（野指针） -> 会出现**双重释放**或**崩溃问题**。
 
-### 深拷贝（Deep Copy）
+### 深拷贝
 
 - 拷贝的是指针所指向的内容，即为新对象**重新分配内存并复制内容**，两个对象互不影响。
 
-### 代码示例
+### 示例
 
 ```cpp
 #include <iostream>
@@ -28,12 +28,12 @@ public:
     Person(const char* n) {
         name = new char[strlen(n) + 1];
         strcpy(name, n);
-    }
+    } 
 
     // 浅拷贝（编译器默认生成的拷贝构造函数）会像这样：
     // Person(const Person& other) { this->name = other.name; }
 
-    // ✅ 深拷贝构造函数
+    // 深拷贝构造函数
     Person(const Person& other) {
         name = new char[strlen(other.name) + 1];
         strcpy(name, other.name);
@@ -72,7 +72,7 @@ int main() {
 
 如果没有手动实现深拷贝，而是使用默认的浅拷贝，上面会导致两个对象共用同一个 `name`，修改 `p2.name` 会影响 `p1.name`，并可能导致内存错误。
 
-### 拷贝相关的三大函数（C++11称为 Rule of Three）
+### Rule of Three
 
 当类有**动态内存资源**时，建议自定义以下三个函数：
 
@@ -92,7 +92,7 @@ Person& operator=(const Person& other) {
 }
 ```
 
-### C++11 之后建议使用 Rule of Five / Rule of Zero
+### Rule of Five
 
 如果还使用**移动语义（move constructor/operator）**，就变成了 Rule of Five。
 
