@@ -4,7 +4,7 @@
 
 简单来说，`allocator` 把“内存管理”和“对象构造/析构”工作拆开，使得 STL 容器能灵活高效地管理内存。
 
-### 为什么需要 `allocator`
+### 为什么需要 allocator
 
 - **解耦内存管理和容器逻辑**：容器只关心如何存储元素，不关心具体怎么分配内存。
 - **允许自定义内存分配策略**：你可以用自己的 allocator 替代默认的 `std::allocator`，例如使用内存池、共享内存或特殊对齐分配等。
@@ -44,77 +44,46 @@ struct allocator {
 };
 ```
 
-#### 1. allocate
+#### allocate
 
 - 负责从堆上分配一块足够存储 `n` 个 `T` 的连续内存空间，**不调用构造函数**。
 - 返回的是原始的内存地址指针，类型是 `T*`。
 - 底层一般调用 `operator new`（非构造版本）或者平台相关的低层分配接口。
 
-示例：
-
 ```cpp
-T* p = alloc.allocate(5); // 分配5个T大小的原始内存
+T* p = alloc.allocate(5); // 分配 5 个 T 大小的原始内存
 ```
 
-#### 2. deallocate
+#### deallocate
 
 - 负责释放之前分配的内存块，不调用析构函数。
 - 需要传入指向内存的指针和之前分配的对象数量（必须与 allocate 时的数量对应）。
-
-示例：
 
 ```cpp
 alloc.deallocate(p, 5); // 释放5个T对象大小的内存
 ```
 
-#### 3. construct （构造对象）
+#### construct
 
-- 作用是在已分配的内存上 **调用构造函数** 来构造一个对象。
+- 作用是在已分配的内存上**调用构造函数**来构造一个对象。
 - 参数是指向内存地址的指针 `p`，和传递给构造函数的参数包 `Args&&... args`。
 - **它并不分配内存，只是构造对象。**
-
-示例：
 
 ```cpp
 alloc.construct(p, arg1, arg2);  // 在 p 指向的内存上调用构造函数 T(arg1, arg2)
 ```
 
-##### C++17 以前
-
-`std::allocator` 直接提供 `construct`，通常实现是：
-
-```cpp
-template <typename U, typename... Args>
-void construct(U* p, Args&&... args) {
-    ::new((void*)p) U(std::forward<Args>(args)...);  // 直接调用定位 new
-}
-```
-
-##### C++17 变化
-
-- C++17 标准中，`std::allocator::construct` **被弃用（deprecated）**，改用 `std::allocator_traits::construct` 来调用构造函数。
-- 这是为了支持自定义 allocator 也能统一实现构造行为（可以更灵活地定义如何构造）。
-- 所以在 C++17 及以后，通常写：
-
-```cpp
-std::allocator_traits<decltype(alloc)>::construct(alloc, p, args...);
-```
-
-而不是直接调用 `alloc.construct(...)`。
-
-#### 4. destroy （销毁对象）
+#### destroy
 
 - 作用是调用指针 `p` 指向对象的析构函数，但**不释放内存**。
 - 即调用 `p->~T()`。
 - 和 `construct` 一样，C++17 之后推荐使用 `std::allocator_traits` 里的 `destroy`。
 
-示例：
-
 ```cpp
 alloc.destroy(p); // 调用 p 所指对象的析构函数
 ```
 
-#### 5. max_size
+#### max_size
 
 - 返回分配器最多能分配多少个对象的大小，通常是 `std::numeric_limits<size_type>::max() / sizeof(T)`。
 - 这是理论上最大分配容量，用于边界检查。
@@ -129,8 +98,6 @@ alloc.destroy(p); // 调用 p 所指对象的析构函数
 
 定位 new（Placement new）是 C++ 中一个特殊的 `new` 操作符重载形式，它允许程序员在已分配的内存地址上直接构造对象，而不是像普通 `new` 那样先分配内存再构造对象。
 
-#### 定位 new 的语法
-
 ```cpp
 void* buffer = std::malloc(sizeof(MyClass)); // 手动申请一块原始内存
 
@@ -139,25 +106,11 @@ MyClass* obj = new (buffer) MyClass(constructor_args...);
 
 这里 `(buffer)` 就是“定位参数”，告诉编译器“不要分配内存，就用这块已有的内存构造对象”。
 
-#### 作用
-
 - **分离分配内存和构造对象**：在某些需要手动管理内存的场景（比如自定义分配器、容器实现等），你先通过 `malloc`、`allocator.allocate()` 等方式申请内存，之后用定位 new 在那块内存上构造对象。
 - **效率更高**：避免重复的内存分配，减少开销。
 - **灵活控制对象生命周期**：可以更精细地控制内存和对象的构造/析构时机。
 
-####  内存和对象生命周期的区别
-
-普通 `new`：
-
-- 先分配内存（`operator new`）
-- 再调用构造函数
-
-定位 new：
-
-- 不分配内存，直接调用构造函数
-- 需要程序员保证传入的内存足够且有效
-
-#### 使用示例
+使用示例
 
 ```cpp
 #include <iostream>
@@ -189,22 +142,10 @@ int main() {
 }
 ```
 
-#### 注意事项
-
 - 定位 new 不会分配内存，只调用构造函数。
 - 使用定位 new 后，**必须手动调用析构函数**，比如 `p->~MyClass()`，否则对象资源不会释放。
 - 定位 new 的内存管理必须由程序员负责（`malloc/free`，或 `allocator`）。
 - 定位 new 通常用于实现自定义内存池、容器内存管理等。
-
-#### 标准库中的关系
-
-`std::allocator<T>::construct` 内部就是用定位 new 来构造对象：
-
-```cpp
-void construct(pointer p, Args&&... args) {
-    ::new((void *)p) T(std::forward<Args>(args)...);
-}
-```
 
 ### 简单使用示例
 
@@ -215,10 +156,10 @@ void construct(pointer p, Args&&... args) {
 int main() {
     std::allocator<int> alloc;
 
-    // 分配5个int的内存
+    // 分配 5 个int的内存
     int* p = alloc.allocate(5);
 
-    // 使用construct构造对象
+    // 使用 construct 构造对象
     for (int i = 0; i < 5; ++i) {
         alloc.construct(p + i, i * 10);
     }
@@ -252,11 +193,30 @@ int main() {
 std::vector<int, MyAllocator<int>> v;
 ```
 
-### C++17 以后 allocator 的变化
+### C++17 前后 allocator 的变化
 
-- `construct` 和 `destroy` 在 C++17 后不再是 `allocator` 的成员函数，而是放到了全局命名空间，作为模板函数调用。
-- `std::allocator` 也简化了很多，主要聚焦于内存分配和释放。
-- 但是自定义 allocator 可以继续定义 `construct` 和 `destroy`。
+#### C++17 以前
+
+`std::allocator` 直接提供 `construct`，通常实现是：
+
+```cpp
+template <typename U, typename... Args>
+void construct(U* p, Args&&... args) {
+    ::new((void*)p) U(std::forward<Args>(args)...);  // 直接调用定位 new
+}
+```
+
+#### C++17 变化
+
+- C++17 标准中，`std::allocator::construct` **被弃用（deprecated）**，改用 `std::allocator_traits::construct` 来调用构造函数。
+- 这是为了支持自定义 allocator 也能统一实现构造行为（可以更灵活地定义如何构造）。
+- 所以在 C++17 及以后，通常写：
+
+```cpp
+std::allocator_traits<decltype(alloc)>::construct(alloc, p, args...);
+```
+
+而不是直接调用 `alloc.construct(...)`。
 
 ```cpp
 #include <memory>
@@ -294,9 +254,13 @@ int main() {
 }
 ```
 
+- `construct` 和 `destroy` 在 C++17 后不再是 `allocator` 的成员函数，而是放到了全局命名空间，作为模板函数调用。
+- `std::allocator` 也简化了很多，主要聚焦于内存分配和释放。
+- 但是自定义 allocator 可以继续定义 `construct` 和 `destroy`。
+
 ### 对比 free，delete，destroy
 
-#### `free(void* p)`
+#### free(void* p)
 
 - 来自 C 标准库，原型在 `<cstdlib>`。
 
@@ -313,7 +277,7 @@ int main() {
   free(p);  // 仅释放内存
   ```
 
-####  `delete` / `delete[]`
+#### delete / delete[]
 
 - C++ 关键字运算符，配合 `new` 使用。
 
@@ -333,7 +297,7 @@ int main() {
   delete[] arr;  // 调用每个对象析构函数 + 释放内存
   ```
 
-####  `destroy`（通常指 `std::allocator_traits::destroy`）
+####  destroy
 
 - STL 内存管理中使用的函数，用于调用对象的析构函数。
 
