@@ -1,8 +1,9 @@
-## malloc-free内存分配原理
+## malloc-free 内存分配原理
 
-C/C++ 中的 `malloc`/`free`（以及 `new`/`delete`）是动态内存分配的基础机制。在系统底层，它们通常基于操作系统提供的内存分配接口（如 `brk/sbrk` 或 `mmap`）来管理堆空间。
+- `malloc` 通过 **arena** 管理堆，每次分配先在 **bins** 中找合适的空闲 **chunk**，找不到就从 **top chunk** 切割或用 **mmap**；
+- `free` 则把 chunk 放回 bins，必要时与相邻空闲块合并，但通常不会立即归还操作系统。
 
-### 一、基本概念
+### 基本概念
 
 | 操作                 | 描述                                               |
 | -------------------- | -------------------------------------------------- |
@@ -15,15 +16,15 @@ C/C++ 中的 `malloc`/`free`（以及 `new`/`delete`）是动态内存分配的�
 
 - 这些 chunk 根据大小分类，**被组织成多个链表（bins）**，每个链表管理一组大小相近或特定范围内的空闲 chunk。
 
-- 当调用 `malloc(size)` 时，系统会去对应大小范围的那个链表里找合适的 chunk，如果找到合适的空闲块，就分配给你；找不到则从大块或者系统申请新的内存。
+- 当调用 `malloc(size)` 时，系统会去对应大小范围的那个链表里找合适的 chunk，如果找到合适的空闲块，就分配；找不到则从大块或者系统申请新的内存。
 
 - **因此，整个 malloc 管理的内存就是很多个“chunk 链表”的集合**，每个链表负责管理特定大小的 chunk，保证快速分配和释放。
 
-### 二. chunk
+### chunk
 
 `chunk` 是 `malloc` 和 `free` 背后用于管理堆内存的最基本单元。可以把每一个 `malloc` 出来的内存块看成是一个 `chunk` 的“用户区域（user area）”，而系统在它前面隐藏了一段元信息（metadata），用于管理这块内存。
 
-#### 1. chunk 的内存结构
+#### chunk 的内存结构
 
 以 64 位系统为例，glibc 中一个 `chunk` 的结构大致如下：
 
@@ -46,7 +47,7 @@ ptr -->    +------------------+ ← malloc 返回的是这个地址之后的 use
   - bit 2 (`NON_MAIN_ARENA`)：是否属于主 arena（线程局部分配支持）
 - `user data`：返回给用户的区域，`malloc` 实际返回的是 `chunk + sizeof(metadata)` 的地址。
 
-#### 2. chunk 的分类
+#### chunk 的分类
 
 根据大小不同，glibc 会将 chunk 分类管理：
 
@@ -57,7 +58,7 @@ ptr -->    +------------------+ ← malloc 返回的是这个地址之后的 use
 | large chunk | ≥ 512 字节         | large bins，有序双向链表           |
 | mmap chunk  | 通常 ≥ 128 KB      | 直接使用 `mmap` 管理               |
 
-#### 3. chunk 生命周期
+#### chunk 生命周期
 
 分配（malloc）伪代码：
 
@@ -103,25 +104,25 @@ void free(void* ptr) {
 }
 ```
 
-### 三、bins
+### bins
 
 在 glibc 的 `malloc` 实现中（即 `ptmalloc`），**bins** 是用于管理空闲 `chunk` 的核心机制。你可以把它们理解为**内存回收仓库**：当你调用 `free` 时，系统并不总是立刻归还内存给操作系统，而是把这块内存扔进一个 bin，供下次 `malloc` 复用。
 
 `bin` 是一个保存空闲 chunk 的数据结构。每种 bin 管理一定大小范围的 chunk，便于快速分配与回收。所有 bin 都是通过**双向链表**管理空闲 chunk 的。
 
-#### 1. bin 的分类（glibc 默认配置）
+#### bin 的分类（glibc 默认配置）
 
-| Bin 类型         | 大小范围（64 位）    | 是否合并 | 是否有序    | 是否加锁      | 使用场景              | 说明                                 |
-| ---------------- | -------------------- | -------- | ----------- | ------------- | --------------------- | ------------------------------------ |
-| **tcache**       | ≤ 1032 字节（默认）  | ❌        | ❌           | ❌（线程局部） | 高频小块 malloc/free  | 线程私有、速度最快、最多 7 个/类     |
-| **fast bins**    | ≤ 64 字节（默认）    | ❌        | ❌           | ❌             | 极快的小块释放        | 释放不合并，适合频繁小分配           |
-| **small bins**   | 64~512 字节          | ✅        | ❌           | ✅             | 中等分配需求          | 精确分类管理，合并空闲块，效率稳定   |
-| **large bins**   | > 512 字节           | ✅        | ✅（按大小） | ✅             | 较大对象复用          | 合并空闲块 + 有序链表，支持首次适配  |
-| **unsorted bin** | 所有释放下来的 chunk | ✅        | ❌           | ✅             | 中转站 + 首次复用机会 | 所有合并后 chunk 首先进入此 bin      |
-| **top chunk**    | 堆空间最顶端         | ✅        | ❌           | ✅             | 无 chunk 可用时扩展堆 | 系统分配来源（sbrk）                 |
-| **mmap chunk**   | 通常 >128 KB         | ❌        | ❌           | ✅             | 特大内存块            | 直接通过 mmap 分配，释放立即归还系统 |
+| Bin 类型         | 大小范围（64 位）    | 是否合并 | 是否有序     | 是否加锁       | 使用场景              | 说明                                   |
+| ---------------- | -------------------- | -------- | ------------ | -------------- | --------------------- | -------------------------------------- |
+| **tcache**       | ≤ 1032 字节（默认）  | 否       | 否           | 否（线程局部） | 高频小块 malloc/free  | 线程私有，速度最快，每类最多缓存 7 个  |
+| **fast bins**    | ≤ 64 字节（默认）    | 否       | 否           | 否             | 极快的小块释放        | 释放时不合并，适合频繁小分配           |
+| **small bins**   | 64~512 字节          | 是       | 否           | 是             | 中等分配需求          | 精确分类管理，支持合并空闲块，效率稳定 |
+| **large bins**   | > 512 字节           | 是       | 是（按大小） | 是             | 较大对象复用          | 合并空闲块，有序链表，支持首次适配     |
+| **unsorted bin** | 所有释放下来的 chunk | 是       | 否           | 是             | 中转站与首次复用机会  | 所有合并后的 chunk 首先进入该 bin      |
+| **top chunk**    | 堆空间最顶端         | 是       | 否           | 是             | 无可用 chunk 时扩展堆 | 系统分配来源，通常通过 sbrk 扩展堆     |
+| **mmap chunk**   | 通常 >128 KB         | 否       | 否           | 是             | 特大内存块分配        | 直接通过 mmap 分配，释放立即归还系统   |
 
-#### 2. 说明图示
+#### 说明图示
 
 ```css
 +---------------------+
@@ -174,7 +175,7 @@ void free(void* ptr) {
 
 ```
 
-### 四、arena
+### arena
 
 `arena` 是 `glibc` 的 `malloc` 实现（ptmalloc）中非常核心的概念，尤其是在多线程程序中，它负责管理分配内存的上下文环境。可以将 `arena` 理解为**堆内存管理的容器或管理者**，它负责：
 
@@ -184,11 +185,11 @@ void free(void* ptr) {
 - 维护锁（保证线程安全）；
 - 在多线程场景下支持并行分配。
 
-#### 1. 什么是 Arena
+#### 什么是 arena
 
 `arena` 是一个 **独立的 malloc 管理单元**，每个 arena 拥有一组 bins 和一个 top chunk。默认主线程使用 **main arena**，其他线程可以使用或新建非主 arena，以减少锁冲突。
 
-#### 2. Arena 的结构（简化）
+#### arena 的结构（简化）
 
 ```c
 struct malloc_state {
@@ -205,15 +206,15 @@ struct malloc_state {
 
 每个 arena 就是一个 `malloc_state`，它拥有自己的一套 bin 体系。
 
-#### 3. 为什么需要多个 Arena
+#### 为什么需要多个 arena
 
 在多线程程序中，单一锁（如只用 `main_arena`）会成为瓶颈：
 
 - 如果所有线程都访问主 arena，会频繁加锁阻塞；
-- 为了解决这个问题，glibc 使用**多 arena**架构；
+- 为了解决这个问题，glibc 使用**多 arena **架构；
 - 每个线程在 malloc/free 时尝试使用一个独立的 arena，这样多个线程可以并行分配内存。
 
-#### 4. Arena 的分配逻辑
+#### arena 的分配逻辑
 
 ```css
 malloc/free 请求：
@@ -225,17 +226,17 @@ malloc/free 请求：
                  找不到？创建新的 arena（调用 mmap）
 ```
 
-#### 5. 创建新 arena 的条件：
+#### 创建新 arena 的条件：
 
 - 系统支持线程；
 - 当前 arena 数量 < 配额（默认根据 CPU 核心数）；
 - 使用 `mmap` 创建一个新的堆区域；
 - 设置 arena 与 heap 的映射。
 
-### 五、glibc 内存管理结构图：Arena + Bins + Chunks（简化版）
+### glibc 内存管理结构图
 
 ```css
-           🌐 多线程下
+         多线程下
 +----------------------------+
 |        Thread A            |
 +----------------------------+
@@ -286,30 +287,21 @@ malloc/free 请求：
 
 | 组件       | 包含内容 / 管理对象                            |
 | ---------- | ---------------------------------------------- |
-| Arena      | 一组 bins、一个 top chunk、mutex               |
-| Bins       | 多条链表，按 chunk 大小分类管理空闲块          |
-| Chunk      | 最小分配单元，有 metadata + 用户数据           |
+| arena      | 一组 bins、一个 top chunk、mutex               |
+| bins       | 多条链表，按 chunk 大小分类管理空闲块          |
+| chunk      | 最小分配单元，有 metadata + 用户数据           |
 | tcache     | 每线程私有的 chunk 缓存，最先查找              |
-| Top Chunk  | 当前堆空间尾部 chunk，用于分配新内存           |
-| mmap Chunk | 超大块直接映射的 chunk，独立存在，不在 bins 中 |
+| top chunk  | 当前堆空间尾部 chunk，用于分配新内存           |
+| mmap chunk | 超大块直接映射的 chunk，独立存在，不在 bins 中 |
 
-### 六、new/delete 与 malloc/free 区别
-
-| 特性     | malloc/free | new/delete         |
-| -------- | ----------- | ------------------ |
-| 类型安全 | ❌ 无类型    | ✅ 支持构造/析构    |
-| 内存分配 | ✅           | ✅                  |
-| 初始化   | ❌           | ✅（调用构造函数）  |
-| 错误处理 | NULL        | 抛出异常（可定制） |
-
-### 七、高效使用 malloc 的建议
+### 高效使用 malloc 的建议
 
 - 尽量复用对象，减少频繁分配与释放
 - 对小块对象可考虑内存池（如 `boost::pool`）
 - 避免在多线程中使用共享数据结构申请内存
 - 使用工具检查内存泄漏和越界
 
-### 八、相关数据结构
+### 相关数据结构
 
 #### 1. `task_struct` — 进程描述符（进程控制块 PCB）
 
@@ -327,7 +319,7 @@ malloc/free 请求：
 ```c
 // linux/sched.h (简化)
 struct task_struct {
-    volatile long state;          // 进程状态，如 TASK_RUNNING, TASK_INTERRUPTIBLE 等
+    volatile long state;         // 进程状态，如 TASK_RUNNING, TASK_INTERRUPTIBLE 等
 
     struct thread_struct thread; // 线程相关寄存器和上下文信息
 
@@ -381,21 +373,21 @@ struct mm_struct {
     struct vm_area_struct *mmap;       // 虚拟内存区域链表头，每个节点表示一段连续的虚拟内存区
     int map_count;                     // 虚拟内存区域数量
 
-    unsigned long start_code, end_code;    // 代码段虚拟地址起始和结束
-    unsigned long start_data, end_data;    // 数据段虚拟地址起始和结束
-    unsigned long start_brk, brk;           // 堆区起始地址和当前断点（堆尾）
-    unsigned long start_stack;               // 栈起始地址
+    unsigned long start_code, end_code; // 代码段虚拟地址起始和结束
+    unsigned long start_data, end_data; // 数据段虚拟地址起始和结束
+    unsigned long start_brk, brk;       // 堆区起始地址和当前断点（堆尾）
+    unsigned long start_stack;          // 栈起始地址
 
     struct rw_semaphore mmap_sem;       // 保护 mmap 链表的读写锁，防止并发冲突
 
-    pgd_t *pgd;                        // 顶层页目录指针（页表根），用于虚拟地址到物理地址转换
+    pgd_t *pgd;                         // 顶层页目录指针（页表根），用于虚拟地址到物理地址转换
 
     // 内存使用统计
     unsigned long total_vm;             // 进程使用的虚拟内存总页数
     unsigned long rss;                  // 驻留集大小，进程实际使用的物理内存页数
     unsigned long locked_vm;            // 被锁定在内存中不可换出的页数
 
-    struct anon_vma *anon_vma;         // 匿名内存的管理结构
+    struct anon_vma *anon_vma;          // 匿名内存的管理结构
     struct file *exe_file;              // 进程可执行文件对应的文件结构
 
     // 其他字段省略
@@ -421,7 +413,7 @@ task_struct
 - `task_struct` 表示进程整体，`mm_struct` 具体描述该进程的内存布局。
 - 线程共享进程地址空间时，会共享同一个 `mm_struct`。
 
-### 九、相关系统调用
+### 相关系统调用
 
 #### 1. `brk()` 和 `sbrk()`
 
@@ -431,7 +423,7 @@ task_struct
 
 - 内核通过当前进程的 `mm_struct` 访问和管理进程地址空间。
 
-- 内核调用 `do_brk()` 函数，试图将==程序断点==调整到目标地址。
+- 内核调用 `do_brk()` 函数，试图将**程序断点**调整到目标地址。
 
 - 过程大致：
 
