@@ -2,7 +2,7 @@
 
 RAII（Resource Acquisition Is Initialization）是 C++ 中一项非常重要的**资源管理**思想。它是 C++ 语言设计中自动管理资源的一种惯用方法，广泛应用于标准库（如 `std::vector`, `std::unique_ptr`, `std::lock_guard`）中。
 
-### 一、RAII 定义
+### 定义
 
 **RAII（资源获取即初始化）**：将资源的生命周期绑定到对象的生命周期上，通过构造函数申请资源，在析构函数中释放资源。
 
@@ -12,7 +12,9 @@ RAII（Resource Acquisition Is Initialization）是 C++ 中一项非常重要的
 
 一旦对象离开作用域，自动调用析构函数，释放资源，**不需要手动释放**，从而避免内存泄漏、资源泄漏等问题。
 
-### 二、RAII 的基本例子
+### 示例
+
+#### 简单例子
 
 ```cpp
 #include <iostream>
@@ -34,28 +36,7 @@ void writeFile() {
 - 构造时打开文件；
 - 析构时自动关闭文件，无需手动 `close()`。
 
-### 三、RAII 的优势
-
-#### 1. **异常安全**
-
-```cpp
-void func() {
-    std::lock_guard<std::mutex> lock(mtx);  // 自动加锁
-    // 发生异常也能自动解锁
-    riskyOperation();
-} // 离开作用域时 lock 析构 -> mtx.unlock()
-```
-
-- 避免忘记 `unlock()`；
-- 即使函数抛出异常，也不会导致资源泄露或死锁。
-
-#### 2. **代码简洁，易于维护**
-
-- 不再需要手动 `delete`、`close`；
-- 减少错误（如重复释放、忘记释放）；
-- 更符合 C++ 面向对象的设计思想。
-
-### 四、自定义 RAII 类的模板
+#### 自定义 RAII 类
 
 ```cpp
 class Buffer {
@@ -84,7 +65,28 @@ void foo() {
 } // 自动释放
 ```
 
-### 五、标准库中的 RAII 示例
+### 优势
+
+#### 异常安全
+
+```cpp
+void func() {
+    std::lock_guard<std::mutex> lock(mtx);  // 自动加锁
+    // 发生异常也能自动解锁
+    riskyOperation();
+} // 离开作用域时 lock 析构 -> mtx.unlock()
+```
+
+- 避免忘记 `unlock()`；
+- 即使函数抛出异常，也不会导致资源泄露或死锁。
+
+#### 代码简洁，易于维护
+
+- 不再需要手动 `delete`、`close`；
+- 减少错误（如重复释放、忘记释放）；
+- 更符合 C++ 面向对象的设计思想。
+
+### 标准库中的 RAII 示例
 
 | 类型                          | 管理资源 | 说明                 |
 | ----------------------------- | -------- | -------------------- |
@@ -93,8 +95,6 @@ void foo() {
 | `std::unique_ptr`             | 动态内存 | 智能指针，唯一拥有权 |
 | `std::shared_ptr`             | 动态内存 | 引用计数指针         |
 | `std::lock_guard`             | 互斥锁   | 自动加解锁           |
-
-### 六、RAII 与智能指针
 
 智能指针是 RAII 的典型应用：
 
@@ -107,7 +107,7 @@ void smart() {
 } // 离开作用域，自动 delete
 ```
 
-### 七、RAII 使用建议
+### RAII 使用建议
 
 - 优先使用标准库 RAII 类，如智能指针、容器等；
 - 避免裸 `new/delete`，除非封装成 RAII；
