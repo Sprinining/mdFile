@@ -17,7 +17,7 @@ void f(void*);
 
 f(0);        // 调用 f(int)，不是你想的 f(void*)
 f(NULL);     // 一般调用 f(int)，也不会调用 f(void*)
-f(nullptr);  // ✅ 正确调用 f(void*)
+f(nullptr);  // 正确调用 f(void*)
 ```
 
 `nullptr` 避免了因为整型优先级导致的错误重载决议。
@@ -26,8 +26,8 @@ f(nullptr);  // ✅ 正确调用 f(void*)
 
 ```cpp
 auto result = findRecord(...);
-if (result == 0)       // ❌ 不知道 result 是 int 还是指针
-if (result == nullptr) // ✅ 明确：result 是指针类型
+if (result == 0)       // 不知道 result 是 int 还是指针
+if (result == nullptr) // 明确：result 是指针类型
 ```
 
 `nullptr` 让代码更具**可读性和意图表达性**。
@@ -47,27 +47,15 @@ auto lockAndCall(Func func, Mutex& mtx, Ptr ptr) -> decltype(func(ptr)) {
 三种调用：
 
 ```cpp
-lockAndCall(f1, m1, 0);         // ❌ 0 推导为 int，类型错误
-lockAndCall(f2, m2, NULL);      // ❌ NULL 也被推导为整型，类型错误
-lockAndCall(f3, m3, nullptr);   // ✅ 推导为 std::nullptr_t，可转换为任意指针
+lockAndCall(f1, m1, 0);         // 0 推导为 int，类型错误
+lockAndCall(f2, m2, NULL);      // NULL 也被推导为整型，类型错误
+lockAndCall(f3, m3, nullptr);   // 推导为 std::nullptr_t，可转换为任意指针
 ```
 
 `nullptr` 是**模板友好型空指针常量**，不会因类型推导错误导致编译失败。
 
-### `nullptr` 的类型特性
+### nullptr 的类型特性
 
-- 类型：`std::nullptr_t`
-- 能**隐式转换为任意指针类型**
-- **不能转换为整数类型**，因此不会误选 `int` 重载版本
-
-### 总结
-
-推荐：
-
-- 使用 `nullptr` 表示空指针。
-- 尤其在函数重载、模板调用、自动类型推导 (`auto`) 场景下。
-
-避免：
-
-- `0`、`NULL` 表示空指针：容易误选重载、类型推导错误。
-- 同时重载 `int` 和 `pointer` 类型时传入 `0`/`NULL`。
+- 类型：`std::nullptr_t`。
+- 能**隐式转换为任意指针类型**。
+- **不能转换为整数类型**，因此不会误选 `int` 重载版本。
