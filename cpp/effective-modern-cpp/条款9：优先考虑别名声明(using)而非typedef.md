@@ -19,7 +19,7 @@ typedef void (*FP)(int, const std::string&);
 using FP = void (*)(int, const std::string&);
 ```
 
-### 模板中的优势：`using` 支持别名模板，`typedef` 不支持！
+### using 支持别名模板，typedef 不支持
 
 #### C++11：别名模板写法更简洁
 
@@ -34,7 +34,7 @@ using MyAllocList = std::list<T, MyAlloc<T>>;
 MyAllocList<Widget> lw;  // 直接使用，语法简洁明了
 ```
 
-#### C++98：typedef 只能通过嵌套 `struct` 实现
+#### C++98：typedef 只能通过嵌套 struct 实现
 
 ```cpp
 // 定义一个模板结构体 MyAllocList，接收一个类型参数 T
@@ -66,7 +66,7 @@ struct MyAllocList {
 ```cpp
 template<typename T>
 class Widget {
-    MyAllocList<T>::type list;  // ❌ 编译报错
+    MyAllocList<T>::type list;  // 编译报错
 };
 ```
 
@@ -97,7 +97,7 @@ class Widget {
 };
 ```
 
-### C++14 的改进：提供统一的 `_t` 后缀别名
+### C++14 的改进：提供统一的 _t 后缀别名
 
 C++11 写法（繁琐）：
 
