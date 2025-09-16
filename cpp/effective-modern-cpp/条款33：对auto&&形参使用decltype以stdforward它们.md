@@ -24,7 +24,7 @@ auto f = [](auto&& x) {
 
 模板参数 `???` 是难点，普通函数模板中用模板参数 `T`，但泛型 lambda 内没有直接可用的 `T`。
 
-### 用 `decltype` 获取参数的精确类型
+### 用 decltype 获取参数的精确类型
 
 ```cpp
 auto f = [](auto&& x) {
