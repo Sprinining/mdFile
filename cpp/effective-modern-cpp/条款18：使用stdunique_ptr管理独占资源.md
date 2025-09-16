@@ -11,11 +11,9 @@
 5. **难以处理异常或分支路径中的释放**
 6. **容易产生悬空指针**
 
-> 原始指针容易“背刺”程序员，智能指针可防止这些灾难性问题。
+### std::unique_ptr 的特点
 
-### `std::unique_ptr` 的特点
-
-核心语义：**独占所有权（exclusive ownership）**
+核心语义：**独占所有权**
 
 - 不能拷贝，只能移动
 - 析构时自动调用 `delete` 销毁所拥有对象
@@ -27,7 +25,7 @@
 std::unique_ptr<Foo> ptr(new Foo);
 ```
 
-### 工厂函数示例：适合返回 `unique_ptr`
+### 工厂函数示例：适合返回 unique_ptr
 
 ```cpp
 template<typename... Ts>
@@ -73,20 +71,9 @@ public:
 | 无状态 lambda 删除器 | 与裸指针相同（推荐） |
 | 有状态 lambda 删除器 | 视捕获内容大小而定   |
 
-> **推荐使用不捕获状态的 lambda** 作为删除器以避免空间膨胀。
+**推荐使用不捕获状态的 lambda** 作为删除器以避免空间膨胀。
 
-### 适用场景总结
-
-| 场景                     | 是否适合用 `unique_ptr` |
-| ------------------------ | ----------------------- |
-| 独占所有权资源管理       | ✅                       |
-| 工厂函数返回对象         | ✅                       |
-| 异常安全的自动销毁       | ✅                       |
-| 拥有对象生命周期的类成员 | ✅                       |
-| 需要共享所有权           | ❌（请用 `shared_ptr`）  |
-| 拷贝语义                 | ❌                       |
-
-### 与 `shared_ptr` 的转换
+### 与 shared_ptr 的转换
 
 `unique_ptr` 可以**轻松转为** `shared_ptr`。
 
@@ -120,7 +107,7 @@ std::shared_ptr<Investment> sp = std::move(up); // 显式转移
 
 - 工厂函数只需返回 `unique_ptr`，由调用者决定是否转换。
 
-- 如果 `makeInvestment` 返回的 `unique_ptr` 使用了 **自定义删除器**，要确保它对 `shared_ptr` 也是适用的（否则可能触发删除错误）。
+- 如果 `makeInvestment` 返回的 `unique_ptr` 使用了**自定义删除器**，要确保它对 `shared_ptr` 也是适用的（否则可能触发删除错误）。
 
 ### 关于数组形式
 
@@ -128,6 +115,6 @@ std::shared_ptr<Investment> sp = std::move(up); // 显式转移
 std::unique_ptr<T[]> arr(new T[n]);
 ```
 
-- 拥有 `operator[]`，但不推荐常用
+- 拥有 `operator[]`，但不推荐常用。
 
-- 更推荐使用 `std::vector` 或 `std::array`
+- 更推荐使用 `std::vector` 或 `std::array`。
