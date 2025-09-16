@@ -1,35 +1,31 @@
 ## 条款15：尽可能使用 constexpr
 
-`constexpr` 表示一个值 **不仅是常量（`const`）**，**而且必须在编译期已知（compile-time constant）**。
+`constexpr` 表示一个值**不仅是常量（`const`）**，**而且必须在编译期已知**。
 
-### `constexpr` 对象 vs 函数
+### constexpr 对象 vs 函数
 
 | 用法             | 描述                                                         |
 | ---------------- | ------------------------------------------------------------ |
 | `constexpr` 变量 | 必须在编译期能被计算，且隐含 `const`。                       |
 | `constexpr` 函数 | 如果传入编译期常量，结果也会是编译期常量；否则在运行期计算。 |
 
-### `constexpr` 对象
+### constexpr 对象
 
-- 所有 `constexpr` 对象都是 `const`。
-- 但并非所有 `const` 对象都是 `constexpr`（因为 `const` 对象可以运行期初始化）。
+所有 `constexpr` 对象都是 `const`。
 
-**适用场景：**
-
-- 数组长度、模板参数、枚举值、对齐修饰符等 **需要整型常量表达式（ICE）** 的地方。
+但并非所有 `const` 对象都是 `constexpr`（因为 `const` 对象可以运行期初始化）。
 
 ```cpp
 constexpr int size = 10;
-std::array<int, size> arr;  // ✅ 正确，size 是编译期常量
+std::array<int, size> arr;  // 正确，size 是编译期常量
 
-const int runtimeSize = getValue();  // ❌ 非 constexpr
-std::array<int, runtimeSize> arr;   // ❌ 编译错误
+const int runtimeSize = getValue();  // 非 constexpr
+std::array<int, runtimeSize> arr;    //  编译错误
 ```
 
-### `constexpr` 函数
+- 适用于数组长度、模板参数、枚举值、对齐修饰符等需要整型常量表达式的地方。
 
-- 如果实参是编译期可知的常量 → 在编译期执行
-- 如果实参不是编译期常量 → 像普通函数一样在运行时执行
+### constexpr 函数
 
 ```cpp
 constexpr int pow(int base, int exp) noexcept {
@@ -37,7 +33,10 @@ constexpr int pow(int base, int exp) noexcept {
 }
 ```
 
-### C++11 vs C++14 中的 `constexpr` 限制
+- 如果实参是编译期可知的常量 → 在编译期执行
+- 如果实参不是编译期常量 → 像普通函数一样在运行时执行
+
+### C++11 vs C++14 中的 constexpr 限制
 
 | C++11 限制                          | C++14 改进                        |
 | ----------------------------------- | --------------------------------- |
@@ -55,7 +54,7 @@ constexpr int pow(int base, int exp) noexcept {
 }
 ```
 
-### `constexpr` 类的构造和成员函数
+### constexpr 类的构造和成员函数
 
 ```cpp
 class Point {
@@ -82,7 +81,7 @@ constexpr Point midpoint(const Point& p1, const Point& p2) noexcept {
 }
 ```
 
-### `constexpr` 的用途示例
+### constexpr 的用途示例
 
 - 编译期计算表达式（替代浮点 std::pow）
 - 实例化模板参数
@@ -93,8 +92,8 @@ constexpr Point midpoint(const Point& p1, const Point& p2) noexcept {
 
 #### 优点
 
-- `constexpr` 对象和函数 **使用场景更多**。
-- 编译器可 **更早发现错误**，还能进行 **性能优化**（如内联、常量传播等）。
+- `constexpr` 对象和函数**使用场景更多**。
+- 编译器可**更早发现错误**，还能进行**性能优化**（如内联、常量传播等）。
 
 #### 风险
 
@@ -104,7 +103,7 @@ constexpr Point midpoint(const Point& p1, const Point& p2) noexcept {
 
 #### 设计建议
 
-- 如果函数能 **始终在编译期求值**，就声明为 `constexpr`。
+- 如果函数能**始终在编译期求值**，就声明为 `constexpr`。
 - 不要为了 `constexpr` 而强行写死函数逻辑。
 - 对于长期稳定性有要求的接口，谨慎添加 `constexpr`。
 
