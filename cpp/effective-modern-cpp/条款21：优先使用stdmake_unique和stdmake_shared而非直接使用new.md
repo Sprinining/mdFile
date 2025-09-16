@@ -3,59 +3,59 @@
 ### 背景与引入
 
 - `std::make_shared` 从 C++11 标准开始提供。
-- `std::make_unique` 从 C++14 标准 开始提供，C++11中可自定义实现。
+- `std::make_unique` 从 C++14 标准开始提供，C++11 中可自定义实现。
 - 这两个“make函数”接收任意参数，完美转发给对象构造函数，返回智能指针。
 
 ### 使用 make 函数的主要优点
 
 #### 避免代码重复
 
-- 直接使用 `new` 时需重复写类型，如：
+直接使用 `new` 时需重复写类型，如：
 
-  ```cpp
-  std::shared_ptr<Widget> spw(new Widget);
-  ```
+```cpp
+std::shared_ptr<Widget> spw(new Widget);
+```
 
-- 使用 `make_shared` 只需写一次类型：
+使用 `make_shared` 只需写一次类型：
 
-  ```cpp
-  auto spw = std::make_shared<Widget>();
-  ```
+```cpp
+auto spw = std::make_shared<Widget>();
+```
 
-- 减少重复代码，降低 bug 风险，提高代码简洁性。
+减少重复代码，降低 bug 风险，提高代码简洁性。
 
 #### 提高异常安全性
 
-- 直接用 `new` 和传递多个参数时，编译器对参数求值顺序不定，可能导致资源泄漏：
+直接用 `new` 和传递多个参数时，编译器对参数求值顺序不定，可能导致资源泄漏：
 
-  ```cpp
-  processWidget(std::shared_ptr<Widget>(new Widget), computePriority());
-  ```
+```cpp
+processWidget(std::shared_ptr<Widget>(new Widget), computePriority());
+```
 
-  这行代码里有两个函数参数：
+这行代码里有两个函数参数：
 
-  1. `std::shared_ptr<Widget>(new Widget)`：创建一个智能指针，管理 `new` 出来的对象
-  2. `computePriority()`：计算一个整数优先级
+1. `std::shared_ptr<Widget>(new Widget)`：创建一个智能指针，管理 `new` 出来的对象
+2. `computePriority()`：计算一个整数优先级
 
-  **问题来了：C++ 中函数参数的求值顺序是未定义的！**
+**问题来了：C++ 中函数参数的求值顺序是未定义的！**
 
-  这意味着编译器可能按任意顺序计算这两个参数，比如：
+这意味着编译器可能按任意顺序计算这两个参数，比如：
 
-  - 先执行 `new Widget`
-  - 然后执行 `computePriority()`
-  - 最后调用 `std::shared_ptr<Widget>` 构造函数
+- 先执行 `new Widget`
+- 然后执行 `computePriority()`
+- 最后调用 `std::shared_ptr<Widget>` 构造函数
 
-  那如果 `computePriority()` 抛异常呢？
+那如果 `computePriority()` 抛异常呢？
 
-  - `new Widget` 已经分配了内存（堆上创建了对象）
-  - 但 `std::shared_ptr` 还没来得及拿到这个指针去“托管”
-  - 结果就是这个指针永远没人管了 → **内存泄漏！**
+- `new Widget` 已经分配了内存（堆上创建了对象）
+- 但 `std::shared_ptr` 还没来得及拿到这个指针去“托管”
+- 结果就是这个指针永远没人管了 → **内存泄漏！**
 
-- `std::make_shared` 保证分配和智能指针构造是原子操作，避免泄漏：
+`std::make_shared` 保证分配和智能指针构造是原子操作，避免泄漏：
 
-  ```cpp
-  processWidget(std::make_shared<Widget>(), computePriority());
-  ```
+```cpp
+processWidget(std::make_shared<Widget>(), computePriority());
+```
 
 #### 性能优化（仅限 `std::make_shared`）
 
@@ -64,7 +64,7 @@
 
 ### 不能或不应使用 make 函数的情况
 
-#### 1. 需要自定义删除器时
+#### 需要自定义删除器时
 
 - `make_unique` 和 `make_shared` 不支持指定自定义删除器。
 
@@ -75,9 +75,9 @@ std::unique_ptr<Widget, decltype(deleter)> upw(new Widget, deleter);
 std::shared_ptr<Widget> spw(new Widget, deleter);
 ```
 
-#### 2. 需要使用花括号初始化（`std::initializer_list`）
+#### 需要使用花括号初始化
 
-- `make_shared` 和 `make_unique` 参数完美转发时用的是小括号初始化，不能直接完美转发花括号初始化。
+- `make_shared` 和 `make_unique` 参数完美转发时用的是小括号初始化，不能直接完美转发花括号初始化（`std::initializer_list`）。
 - 若要使用花括号初始化，需要先用 `auto initList = { ... };` 初始化 `initializer_list`，再传递给 make 函数。
 
 ##### 举例
@@ -94,7 +94,7 @@ std::vector<int> v{10, 20};  // 正确，用 initializer_list 构造
 auto sp = std::make_shared<std::vector<int>>({10, 20});  // 不行！
 ```
 
-这并不会调用 `std::initializer_list` 的构造函数，而是会被解释成两个独立参数（编译失败或构造错误对象）。因为 `make_shared` 是模板函数，它用 **完美转发** 把参数传给构造函数，但完美转发时参数是用 **小括号 `( )`** 包装的，不能处理花括号 `{}` 的 initializer list。
+这并不会调用 `std::initializer_list` 的构造函数，而是会被解释成两个独立参数（编译失败或构造错误对象）。因为 `make_shared` 是模板函数，它用**完美转发**把参数传给构造函数，但完美转发时参数是用**小括号 `( )`** 包装的，不能处理花括号 `{}` 的 initializer list。
 
 > **花括号初始化无法被完美转发**，是 C++ 的一个限制。
 
@@ -104,17 +104,17 @@ auto sp = std::make_shared<std::vector<int>>({10, 20});  // 不行！
 
 ```cpp
 auto initList = {10, 20};
-auto sp = std::make_shared<std::vector<int>>(initList);  // ✅ 正确
+auto sp = std::make_shared<std::vector<int>>(initList);
 ```
 
 这样就明确告诉编译器：“我要用 initializer_list 构造函数。”
 
-#### 3. 类重载了 `operator new` / `operator delete`
+#### 类重载了 operator new / operator delete
 
 - 这类类可能有特殊内存管理需求，不适合 `make_shared`。
 - 因为 `make_shared` 需要分配比对象大得多的内存（包含控制块），与重载的内存管理冲突。
 
-##### 正常用 `new` 的对象
+##### 正常用 new 的对象
 
 ```cpp
 struct Widget {
@@ -129,7 +129,7 @@ std::shared_ptr<Widget> sp(new Widget);
 - 控制块（引用计数信息）单独再分配一块内存。
 - 没有冲突，没问题。
 
-##### 用 `make_shared`
+##### 用 make_shared
 
 ```cpp
 auto sp = std::make_shared<Widget>();
@@ -138,7 +138,7 @@ auto sp = std::make_shared<Widget>();
 - `make_shared` 优化了性能：它会分配“一大块内存”，**把控制块和 Widget 一起放进去**。
 - 只分配一次，提高性能。
 
-##### 问题来了：类重载了 `operator new`
+##### 问题来了：类重载了 operator new
 
 ```cpp
 struct MyObj {
@@ -169,7 +169,7 @@ T* obj = new (rawMemory) T(...);  // 定位 new，构造对象在预分配内存
 ```
 
 - `make_shared` **不是直接用 `T::operator new` 分配内存**！
-- 它分配一块内存，自己安排对象和控制块的位置，然后手动在那块内存中**构造对象**（placement new）
+- 它分配一块内存，自己安排对象和控制块的位置，然后手动在那块内存中**构造对象**（placement new）。
 
 换句话说：它绕开了类自己定义的 `operator new`，**不调用也不尊重**你的重载逻辑！
 
@@ -202,61 +202,38 @@ struct MyObj {
 
 `make_shared` 直接用 `::operator new` 分配原始内存，然后绕开你的 `operator new` 自己构造对象。 你想控制对象如何被 new，结果 `make_shared` 根本不让你插手。
 
-#### 4. 关注内存释放时机，特别是大对象
+#### 关注内存释放时机，特别是大对象
 
-- `make_shared` 分配的内存包含控制块和对象，直到最后一个 `shared_ptr` 和 `weak_ptr` 都销毁，内存才释放。
-- 直接用 `new` 创建，销毁最后一个 `shared_ptr` 时对象内存立即释放，控制块单独释放。
-- 如果弱引用 `weak_ptr` 活得比对象长，且对象非常大，可能会造成内存占用延迟。
+##### 控制块的释放规则
 
-##### `make_shared` 的行为
+- 当强引用计数 = 0 时
+  - 被管理的对象（`T`）会被销毁（调用析构函数 + 释放内存）。
+  - 但此时控制块**不一定释放**，因为可能还有 `weak_ptr` 在用它。
+- 当强引用计数 = 0 且弱引用计数 = 0 时
+  - 控制块本身才会被释放。
 
-```cpp
-auto sp = std::make_shared<BigObject>();
-```
+##### std::make_shared\<T>(...)
 
-- `make_shared` 会 **一次性分配一大块内存**：里面既包含你的对象（`BigObject`），也包含智能指针的**控制块**（用于记录引用计数）。
-- 控制块负责记录：
-  - 有多少个 `shared_ptr`（shared count）
-  - 有多少个 `weak_ptr`（weak count）
+- **一次性分配一整块内存**：包含**控制块**和**对象 T**。
+- 当最后一个 `shared_ptr` 销毁时：对象析构，但控制块可能继续存在。
+- 内存（控制块 + 对象）要等**最后一个 `weak_ptr` 销毁**时才真正释放。
 
-> **这块内存只有当 shared 和 weak 都销毁后，才会整体释放！**
+优点：更高效（一次分配），缓存局部性更好。
+缺点：如果对象很大，而仍有 `weak_ptr` 存活，会延迟整块内存的释放。
 
-##### 用 `new` 的行为
+##### std::shared_ptr\<T>(new T)
 
-```cpp
-#std::shared_ptr<BigObject> sp(new BigObject);
-```
+- **两次分配内存**：
+  1. `new T` → 对象的内存
+  2. 控制块单独分配
+- 当最后一个 `shared_ptr` 销毁时：
+  - 对象内存**立即释放**
+  - 控制块仍然存活，直到最后一个 `weak_ptr` 销毁才释放。
 
-- `new` 创建的对象在堆上。
-- 控制块单独在另一块内存。
-- 一旦最后一个 `shared_ptr` 被销毁，**对象立即释放**。
-- 控制块会等最后一个 `weak_ptr` 销毁后再释放。
+优点：对象内存可以更早释放（即使还有 `weak_ptr`）。
+缺点：分配次数多一次，性能略低，局部性差。
 
-##### 如果对象很大，而且还有 `weak_ptr` 没销毁
-
-```cpp
-auto sp = std::make_shared<ReallyBigObject>();
-std::weak_ptr<ReallyBigObject> wp = sp;
-sp.reset();  // 最后一个 shared_ptr 销毁了，但 weak_ptr 还在
-```
-
-- 对象（`ReallyBigObject`）的内存 **并不会立刻释放**。
-- 因为对象和控制块在同一块内存里，只有当 `wp`（`weak_ptr`）也销毁后，这块内存才能释放。
-- 如果 `wp` 还长时间存在，大对象内存就**白占着**，造成**内存占用延迟**或浪费。
-
-##### 用 `new` 创建就不会这样
-
-```cpp
-std::shared_ptr<ReallyBigObject> sp(new ReallyBigObject);
-std::weak_ptr<ReallyBigObject> wp = sp;
-sp.reset();  // 对象立即释放
-```
-
-- 控制块还在（因为 `wp` 存在），但对象已经析构、释放，**内存更及时回收**。
-
-`make_shared` 的高效来自合并分配，但也导致只有在最后一个 `shared_ptr` **和** `weak_ptr` 都销毁后，对象的内存才释放。若对象很大、`weak_ptr` 活得长，会延迟释放占内存。
-
-### 异常安全情况下的写法建议（特别是自定义删除器场景）
+### 异常安全情况下的写法建议
 
 - 不用 `make_shared`，直接用 `new` 传递给智能指针时，建议分两步：
 
