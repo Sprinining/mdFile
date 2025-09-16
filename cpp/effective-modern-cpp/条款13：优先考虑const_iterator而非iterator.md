@@ -1,9 +1,11 @@
 ## 条款13：优先考虑 const_iterator 而非 iterator
 
-- **只要不需要修改元素，就应优先使用 `const_iterator`。**
-  - `const_iterator` **只保证不能通过它修改元素本身**
-  - **不限制操作容器结构**（如插入、删除）
-- 理由同“能加 `const` 就加”的通用准则：可读性更高、语义更明确、避免误用。
+**只要不需要修改元素，就应优先使用 `const_iterator`。**
+
+- `const_iterator` **只保证不能通过它修改元素本身**
+- **不限制操作容器结构**（如插入、删除）
+
+理由同“能加 `const` 就加”的通用准则：可读性更高、语义更明确、避免误用。
 
 ### C++98 与 C++11 的差异
 
@@ -15,12 +17,12 @@
 
   ```cpp
   std::vector<int>::const_iterator ci = ...;
-  values.insert(ci, 123);  // ❌ C++98 不允许
+  values.insert(ci, 123);  // C++98 不允许
   ```
 
 - **`const_iterator` 无法转换为 `iterator`**（即便用 `static_cast` / `reinterpret_cast`）。
 
-所以：C++98 中，即便想用 `const_iterator`，实践上很麻烦。
+所以 C++98 中，即便想用 `const_iterator`，实践上很麻烦。
 
 #### C++11 的改进
 
@@ -35,9 +37,9 @@
   values.insert(it, 1998);  // 合法
   ```
 
-### 高通用性的做法（泛型代码）
+### 高通用性的做法
 
-为了兼容 **原生数组** 和 **仅支持非成员函数的容器（如第三方库）**，优先使用：
+为了兼容**原生数组**和**仅支持非成员函数的容器（如第三方库）**，优先使用：
 
 ```cpp
 using std::cbegin;
@@ -59,6 +61,10 @@ auto cbegin(const C& container) -> decltype(std::begin(container)) {
     return std::begin(container);  // 对 const 容器返回 const_iterator
 }
 ```
+
+- 以常量引用的方式接收容器，保证函数不会修改容器本身。
+- 返回的是容器的迭代器类型。
+- 因为 `container` 是 **const 引用**，所以这里得到的迭代器类型一定是 **const_iterator**（即使容器本身支持普通 iterator）。
 
 注意：并非调用 `.cbegin()`，而是借助 `const C&` + `std::begin()` 达到效果。
 
