@@ -8,7 +8,7 @@
 
 ```cpp
 enum Color { black, white, red };  // black, white, red 在 Color 所在作用域
-auto white = false;                // 错误，white重复定义
+auto white = false;                // 错误，white 重复定义
 ```
 
 #### 限域枚举（scoped enum，C++11引入）
@@ -76,16 +76,16 @@ enum class Status : std::uint32_t;         // 指定底层类型
 
 - 默认：
 
-  - 未限域enum不一定是 `int`，取决于编译器和枚举值范围。
+  - 未限域 enum 不一定是 `int`，取决于编译器和枚举值范围。
 
-  - 限域enum默认是 `int`。
+  - 限域 enum 默认是 `int`。
 
 ### 兼容性与实用场景
 
-- **未限域enum** 在某些情况下有优势，比如与模板参数要求整数类型（如 `std::tuple` 索引）结合使用时，枚举值可隐式转为整数。
-- 对于一般用途，**建议使用限域enum**，以避免命名污染和类型安全问题。
+- **未限域 enum** 在某些情况下有优势，比如与模板参数要求整数类型（如 `std::tuple` 索引）结合使用时，枚举值可隐式转为整数。
+- 对于一般用途，**建议使用限域 enum**，以避免命名污染和类型安全问题。
 
-### 示例：使用未限域 enum 索引 `std::tuple`
+### 使用未限域 enum 索引 std::tuple
 
 ```cpp
 // 定义一个非限域枚举，枚举成员名直接在作用域内可用
