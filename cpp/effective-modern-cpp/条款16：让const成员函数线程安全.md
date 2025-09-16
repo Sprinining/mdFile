@@ -69,9 +69,10 @@ public:
     }
 
 private:
-    mutable std::mutex m;                      // 互斥锁，用于保护缓存数据的读写，mutable允许在const函数中修改
-    mutable bool rootsAreValid{false};        // 标记缓存是否有效，mutable允许在const函数中修改
-    mutable RootsType rootVals{};              // 缓存计算得到的根，mutable允许在const函数中修改
+    // mutable 允许在 const 函数中修改
+    mutable std::mutex m;                      // 互斥锁，用于保护缓存数据的读写
+    mutable bool rootsAreValid{false};         // 标记缓存是否有效
+    mutable RootsType rootVals{};              // 缓存计算得到的根
 };
 ```
 
@@ -85,22 +86,23 @@ private:
 ```cpp
 class Point {
 public:
-    // 计算点到原点的距离，声明为const保证不修改点的逻辑状态
+    // 计算点到原点的距离，声明为 const 保证不修改点的逻辑状态
     // noexcept表示此函数不会抛异常
     double distanceFromOrigin() const noexcept {
-        ++callCount;  // 线程安全地递增调用计数，std::atomic保证无数据竞争
+        ++callCount;  // 线程安全地递增调用计数，std::atomic 保证无数据竞争
         return std::sqrt(x * x + y * y);  // 计算欧几里得距离
     }
 
 private:
-    mutable std::atomic<unsigned> callCount{0};  // 可变的原子计数器，用于统计调用次数，允许const函数修改
+    // mutable 允许在 const 函数中修改
+    mutable std::atomic<unsigned> callCount{0};  // 可变的原子计数器，用于统计调用次数
     double x, y;                                 // 点的坐标
 };
 ```
 
 **注意**：`std::atomic` 不适合需要多个变量作为整体（事务）操作的场景。
 
-### 复杂缓存场景下 `std::atomic` 的坑
+### 复杂缓存场景下 std::atomic 的坑
 
 使用两个 `std::atomic` 变量缓存值和有效标志时，可能出现：
 
@@ -110,21 +112,22 @@ private:
 ```cpp
 class Widget {
 public:
-    // 返回魔法值的函数，声明为const表示不会修改对象的逻辑状态
+    // 返回魔法值的函数，声明为 const 表示不会修改对象的逻辑状态
     int magicValue() const {
         if (cacheValid)                     // 如果缓存有效，直接返回缓存值
             return cachedValue;
         else {
-            auto val1 = expensiveComputation1();  // 进行开销大的计算1
-            auto val2 = expensiveComputation2();  // 进行开销大的计算2
-            cachedValue = val1 + val2;             // 更新缓存值
-            cacheValid = true;                      // 标记缓存有效
-            return cachedValue;                     // 返回新计算的缓存值
+            auto val1 = expensiveComputation1();  // 进行开销大的计算 1
+            auto val2 = expensiveComputation2();  // 进行开销大的计算 2
+            cachedValue = val1 + val2;            // 更新缓存值
+            cacheValid = true;                    // 标记缓存有效
+            return cachedValue;                   // 返回新计算的缓存值
         }
     }
 
 private:
-    mutable std::atomic<bool> cacheValid{false};  // 缓存是否有效的原子布尔标记，允许在const函数中修改
+    // mutable 允许在 const 函数中修改
+    mutable std::atomic<bool> cacheValid{false};  // 缓存是否有效的原子布尔标记
     mutable std::atomic<int> cachedValue;         // 缓存的整数值，原子类型保证多线程安全
 };
 ```
@@ -167,7 +170,7 @@ return cachedValue = val1 + val2;  // 再写缓存值
 
 这就是所谓的“写操作不是原子性的”，两个变量的更新顺序和可见性没有保证，导致数据竞争和错误结果。
 
-### 推荐方案：缓存多变量使用互斥量保护
+### 缓存多变量使用互斥量保护
 
 ```cpp
 class Widget {
@@ -188,14 +191,15 @@ public:
     }
 
 private:
-    mutable std::mutex m;           // 互斥锁，mutable使得即使在const成员函数中也能修改锁
-    mutable int cachedValue;        // 缓存的计算结果，mutable允许在const函数中修改
-    mutable bool cacheValid{false}; // 缓存是否有效的标志，mutable允许在const函数中修改
+    // mutable 允许在 const 函数中修改
+    mutable std::mutex m;           // 互斥锁
+    mutable int cachedValue;        // 缓存的计算结果
+    mutable bool cacheValid{false}; // 缓存是否有效的标志
 };
 ```
 
-- `mutable` 关键字使这些成员变量可以在`const`成员函数中修改，适合缓存这种逻辑。
-- `std::lock_guard<std::mutex>`负责自动加锁和解锁，保证访问缓存的线程安全。
+- `mutable` 关键字使这些成员变量可以在 `const` 成员函数中修改，适合缓存这种逻辑。
+- `std::lock_guard<std::mutex>` 负责自动加锁和解锁，保证访问缓存的线程安全。
 - 先检查缓存有效性，避免重复计算昂贵的操作。
 
 ### 总结
