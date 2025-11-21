@@ -1,13 +1,6 @@
----
-title: 二叉树的遍历Java
-date: 2023-12-31 11:29:55 +0800
-categories: [algorithm, summary]
-tags: [Algorithm, Algorithm Template, Binary Tree, Binary Tree Traversal]
-description: 
----
-# 二叉树的遍历
+## 二叉树的遍历
 
-## 先序
+### 先序
 
 ```java
 /**
@@ -112,7 +105,7 @@ class Solution {
 }
 ```
 
-## 中序
+### 中序
 
 ```java
 /**
@@ -190,7 +183,7 @@ class Solution {
 }
 ```
 
-## 后序
+### 后序
 
 ```java
 /**
@@ -303,11 +296,11 @@ public class Solution {
 }
 ```
 
-## 层序
+### 层序
 
 
 
-## 二叉树深度
+### 二叉树深度
 
 ```java
 public class Solution {
@@ -336,7 +329,7 @@ public class Solution {
 }
 ```
 
-## 层序遍历记录每一层
+### 层序遍历记录每一层
 
 ```java
 public class Solution {
@@ -363,7 +356,7 @@ public class Solution {
 }
 ```
 
-## 最近公共祖先LCA
+### 最近公共祖先LCA
 
 ```java
 class Solution {
