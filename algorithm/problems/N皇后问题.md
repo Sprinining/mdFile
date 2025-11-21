@@ -1,10 +1,3 @@
----
-title: N皇后问题
-date: 2024-10-06 09:05:44 +0800
-categories: [algorithm, problems]
-tags: [Algorithm, Recursion, NQueens]
-description: 
----
 ## N皇后问题
 
 - 时间复杂度为 O(n!)

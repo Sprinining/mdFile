@@ -1,10 +1,3 @@
----
-title: Dijkstra 算法
-date: 2024-09-20 03:07:04 +0800
-categories: [algorithm, problems]
-tags: [Algorithm, Dijkstra, Graph, Heap]
-description: 
----
 ## 普通堆实现的 Dijkstra 算法
 
 - 时间复杂度为 `O(m * logm)`，m 为边数

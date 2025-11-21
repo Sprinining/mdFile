@@ -1,10 +1,3 @@
----
-title: A星、Floyd、Bellman-Ford
-date: 2024-09-20 08:42:32 +0800
-categories: [algorithm, problems]
-tags: [Algorithm, A*, Floyd, Bellman-Ford]
-description: 
----
 ## A 星算法
 
 A 星和 Dijkstra 算法唯一区别在于堆中排序的依据。distance 数组仍然保存实际代价，预估代价只影响堆的弹出顺序。
