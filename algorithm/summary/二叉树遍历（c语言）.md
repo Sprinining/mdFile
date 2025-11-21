@@ -1,15 +1,8 @@
----
-title: 二叉树遍历（c语言）
-date: 2024-01-11 12:23:30 +0800
-categories: [algorithm, summary]
-tags: [Algorithm, Algorithm Template, Binary Tree, Binary Tree Traversal]
-description: 
----
-# 二叉树遍历
+## 二叉树遍历
 
-## 先序
+### 先序
 
-### 递归
+#### 递归
 
 ```c
 int *res;
@@ -30,7 +23,7 @@ int *preorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### 迭代
+#### 迭代
 
 ```c
 int *preorderTraversal(struct TreeNode *root, int *returnSize) {
@@ -56,7 +49,7 @@ int *preorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### 迭代（右子树先入栈）
+#### 迭代（右子树先入栈）
 
 ```c
 int *preorderTraversal(struct TreeNode *root, int *returnSize) {
@@ -78,7 +71,7 @@ int *preorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### 右左根访问，再反转序列
+#### 右左根访问，再反转序列
 
 ```c
 int *res;
@@ -111,7 +104,7 @@ int *preorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### Morris
+#### Morris
 
 ```C
 int *res;
@@ -162,9 +155,9 @@ int *preorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-## 中序
+### 中序
 
-### 递归
+#### 递归
 
 ```c
 int *res;
@@ -185,7 +178,7 @@ int *inorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### 迭代
+#### 迭代
 
 ```c
 int *inorderTraversal(struct TreeNode *root, int *returnSize) {
@@ -211,7 +204,7 @@ int *inorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### Morris
+#### Morris
 
 ```c
 int *res;
@@ -251,9 +244,9 @@ int *inorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-## 后序
+### 后序
 
-### 递归
+#### 递归
 
 ```c
 int *res;
@@ -274,7 +267,7 @@ int *postorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### 迭代
+#### 迭代
 
 ```c
 int *postorderTraversal(struct TreeNode *root, int *returnSize) {
@@ -310,7 +303,7 @@ int *postorderTraversal(struct TreeNode *root, int *returnSize) {
 }
 ```
 
-### Morris
+#### Morris
 
 ```c
 int *res;
@@ -377,7 +370,7 @@ int *postorderTraversal(struct TreeNode *root, int *returnSize) {
 ```
 
 
-## 层序
+### 层序
 
 ```c
 int **levelOrder(struct TreeNode *root, int *returnSize, int **returnColumnSizes) {
