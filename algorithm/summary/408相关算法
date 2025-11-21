@@ -1,0 +1,1386 @@
+## 408 相关算法
+
+### 排序
+
+```c
+/**
+ *  交换排序：冒泡排序（稳定）、快速排序（不稳定）
+ *  选择排序：普通选择排序（不稳定）、堆排序（不稳定）
+ *  插入排序：直接插入排序（稳定）、二分插入排序（不稳定）、希尔排序（不稳定）
+ *  归并排序：普通归并排序（稳定）
+ *  分布排序：基数排序（稳定）
+ */
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int cmp(const void* a, const void* b) { return *(int*)(a) - *(int*)b; }
+
+void swap(int* a, int* b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// 1.冒泡排序
+void bubbleSort(int* array, int size) {
+    // 比较size-1轮
+    for (int i = 0; i < size - 1; i++) {
+        // 是否已经有序了
+        bool isSorted = true;
+        // 每一轮都会有个大元素移到后面
+        for (int j = 0; j < size - 1 - i; j++) {
+            // 将相邻的两个比较，大的移到后面
+            if (array[j] > array[j + 1]) {
+                // 有交换的说明没排好
+                isSorted = false;
+                swap(&array[j], &array[j + 1]);
+            }
+        }
+        if (isSorted == true) break;
+    }
+}
+
+void quickSortRecursive(int* array, int left, int right) {
+    if (left >= right) return;
+    int i = left;
+    int j = right;
+    // 基准元素
+    int key = array[left];
+    // 分成两半，左边小于基准元素，右边大于基准元素
+    while (i < j) {
+        // 从右往左找第一个小于key的
+        while (i < j && array[j] >= key) {
+            j--;
+        }
+        // 与key交换
+        if (i < j) {
+            array[i] = array[j];
+            // j 处不用立刻放入key，后面可能会有比key大的元素放在这
+            i++;
+        }
+        // 从左往右找第一个大于key的
+        while (i < j && array[i] <= key) {
+            i++;
+        }
+        // 与key交换
+        if (i < j) {
+            array[j] = array[i];
+            j--;
+        }
+    }
+    // 循环退出时i=j
+    array[i] = key;
+    quickSortRecursive(array, left, i - 1);
+    quickSortRecursive(array, i + 1, right);
+}
+
+// 2.快速排序
+void quickSort(int* array, int size) {
+    quickSortRecursive(array, 0, size - 1);
+}
+
+// 3.普通选择排序
+void selectionSort(int* array, int size) {
+    // size-1轮
+    for (int i = 0; i < size - 1; i++) {
+        int minIndex = i;
+        // 从后面找更小的
+        for (int j = i + 1; j < size; j++) {
+            if (array[j] < array[minIndex]) {
+                minIndex = j;
+            }
+        }
+        // 确实有更小的
+        if (minIndex != i) {
+            swap(&array[i], &array[minIndex]);
+        }
+    }
+}
+
+// 自顶向下调整堆顶（只有堆顶不符合堆的定义）
+void adjustHeap(int* array, int currentIndex, int size) {
+    int temp = array[currentIndex];
+    int leftChildIndex = 2 * currentIndex + 1;
+
+    while (leftChildIndex <= (size - 1)) {
+        // 找更大点的子节点
+        if (leftChildIndex < (size - 1) &&
+            array[leftChildIndex] < array[leftChildIndex + 1]) {
+            leftChildIndex++;
+        }
+        // 更大的子节点都比 temp 小，那就不需要再往下调整了
+        if (array[leftChildIndex] <= temp) break;
+        // 与子节点交换
+        array[currentIndex] = array[leftChildIndex];
+        // 调整子节点往下的分支
+        currentIndex = leftChildIndex;
+        leftChildIndex = 2 * currentIndex + 1;
+    }
+    array[currentIndex] = temp;
+}
+
+// 4.堆排序（下标从0开始）
+void heapSort(int* array, int size) {
+    // 从第一个非叶子节点开始，自底向上
+    for (int i = (size - 2) / 2; i >= 0; i--) {
+        adjustHeap(array, i, size);
+    }
+    printf("大顶堆：");
+    // size-1轮
+    for (int i = 1; i < size; i++) {
+        swap(&array[0], &array[size - i]);
+        // 已经是堆了，在修改完堆顶后只需要对堆顶进行重定位
+        adjustHeap(array, 0, size - i);
+    }
+}
+
+// 5.直接插入排序
+void insertionSort(int* array, int size) {
+    // size-1轮
+    // [0, i-1]是有序序列
+    for (int i = 1; i < size; i++) {
+        // 待插入的元素
+        int temp = array[i];
+        // 插入已经有序的序列
+        // 从有序序列的末尾往前找第一个小于等于temp的
+        int j = i - 1;
+        while (j >= 0 && (array[j] > temp)) {
+            // 边找边把不符合的元素后移
+            array[j + 1] = array[j];
+            j--;
+        }
+        array[j + 1] = temp;
+    }
+}
+
+// 6.二分插入排序
+void binaryInsertionSort(int* array, int size) {
+    for (int i = 1; i < size; i++) {
+        int temp = array[i];
+        // 二分查找插入位置
+        int left = 0;
+        int right = i - 1;
+        int mid;
+        while (left <= right) {
+            mid = left + (right - left) / 2;
+            if (array[mid] >= temp) {
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        // 循环结束后left就是应该插入的下标
+        // 把下标从left到i-1的都往后移动一位
+        for (int j = i - 1; j >= left; j--) {
+            array[j + 1] = array[j];
+        }
+        array[left] = temp;
+    }
+}
+
+// 7.希尔排序
+void shellSort(int* array, int size) {
+    // 初始步长 gap 设置为 size / 2
+    // —— Shell 排序的经典步长序列：n/2，n/4，...，直到 1
+    // gap 表示“组内元素之间的距离”
+    int gap = size / 2;
+
+    // gap 不断缩小直到为 0，gap=1 时就是普通插入排序
+    while (gap > 0) {
+
+        // 从 gap 开始，依次对所有元素进行“分组插入排序”
+        // 注意：对于 gap=3 时，i=3,4,5,...，实际上形成了 3 个子序列：
+        //   i = 3 -> 分组是下标 {0,3,6,9,...}
+        //   i = 4 -> 分组是下标 {1,4,7,10,...}
+        //   i = 5 -> 分组是下标 {2,5,8,11,...}
+        // 每个子序列之间相互独立，各自执行插入排序。
+        for (int i = gap; i < size; i++) {
+
+            // 当前插入排序待插入的值
+            int temp = array[i];
+
+            // j 从当前元素的“前一个同组元素”开始比较
+            // j = i - gap 保证 j 与 i 同组（相隔 gap）
+            int j = i - gap;
+
+            // 类似插入排序的“向左移动”
+            // 关键：比较的不是相邻元素，而是相隔 gap 的元素
+            // 当 array[j] > temp 时，表示需要把 array[j] 右移 gap 距离
+            while (j >= 0 && array[j] > temp) {
+                // 将 j 位置的元素往后移 gap 个位置
+                array[j + gap] = array[j];
+
+                // j 再向左移动 gap，继续比较更早一组的元素
+                j -= gap;
+            }
+
+            // 找到 temp 的插入位置：j + gap
+            // 注意 j 最后一次循环会再减 gap，所以插入点是 j + gap
+            array[j + gap] = temp;
+        }
+
+        // 步长减半，继续缩小分组范围
+        // 当 gap 变为 1 时，将执行一次普通插入排序
+        gap = gap / 2;
+    }
+}
+
+
+// 分治-治
+void mergeSort_conquer(int* array, int left, int mid, int right, int* temp) {
+    // [left, mid]和[mid+1, right]两个有序数组
+    int i = left;
+    int j = mid + 1;
+    int index = 0;
+    while (i <= mid && j <= right) {
+        if (array[i] < array[j]) {
+            temp[index++] = array[i++];
+        } else {
+            temp[index++] = array[j++];
+        }
+    }
+    // 剩余元素直接放入temp
+    while (i <= mid) {
+        temp[index++] = array[i++];
+    }
+    while (j <= right) {
+        temp[index++] = array[j++];
+    }
+    // 放回原数组
+    index = 0;
+    while (left <= right) {
+        array[left++] = temp[index++];
+    }
+}
+
+// 分治-分
+void mergeSort_divide(int* array, int left, int right, int* temp) {
+    if (left >= right) return;
+    int mid = left + (right - left) / 2;
+    // 左边归并排序
+    mergeSort_divide(array, left, mid, temp);
+    // 右边归并排序
+    mergeSort_divide(array, mid + 1, right, temp);
+    // 合并两个有序序列
+    mergeSort_conquer(array, left, mid, right, temp);
+}
+
+// 8.普通归并排序
+void mergeSort(int* array, int size) {
+    int* temp = (int*)malloc(sizeof(int) * size);
+    mergeSort_divide(array, 0, size - 1, temp);
+    display(array, size);
+}
+```
+
+### 树
+
+#### 二叉树遍历
+
+##### 先序
+
+###### 递归
+
+```c
+int *res;
+
+void preorder(struct TreeNode *root, int *returnSize) {
+    if (root == NULL) return;
+    // 根左右
+    res[(*returnSize)++] = root->val;
+    preorder(root->left, returnSize);
+    preorder(root->right, returnSize);
+}
+
+int *preorderTraversal(struct TreeNode *root, int *returnSize) {
+    res = (int *) malloc(sizeof(int) * 100);
+    *returnSize = 0;
+    preorder(root, returnSize);
+    return res;
+}
+```
+
+###### 迭代
+
+```c
+int *preorderTraversal(struct TreeNode *root, int *returnSize) {
+    int *res = (int *) malloc(sizeof(int) * 100);
+    *returnSize = 0;
+    struct TreeNode *stack[100];
+    int top = 0;
+
+    while (top != 0 || root != NULL) {
+        // 左子树入栈
+        while (root != NULL) {
+            // 访问
+            res[(*returnSize)++] = root->val;
+            stack[top++] = root;
+            root = root->left;
+        }
+
+        root = stack[--top];
+        root = root->right;
+    }
+
+    return res;
+}
+```
+
+##### 中序
+
+###### 迭代
+
+```c
+int *inorderTraversal(struct TreeNode *root, int *returnSize) {
+    int *res = (int *) malloc(sizeof(int) * 100);
+    *returnSize = 0;
+    struct TreeNode *stack[100];
+    int top = 0;
+
+    while (top != 0 || root != NULL) {
+        // 左子树入栈
+        while (root != NULL) {
+            stack[top++] = root;
+            root = root->left;
+        }
+
+        root = stack[--top];
+        // 访问
+        res[(*returnSize)++] = root->val;
+        root = root->right;
+    }
+
+    return res;
+}
+```
+
+##### 后序
+
+###### 迭代
+
+```c
+int *postorderTraversal(struct TreeNode *root, int *returnSize) {
+    int *res = (int *) malloc(sizeof(int) * 100);
+    *returnSize = 0;
+    struct TreeNode *stack[100];
+    int top = 0;
+    // 记录上个访问的节点
+    struct TreeNode *pre = NULL;
+
+    while (top != 0 || root != NULL) {
+        // 左子树入栈
+        while (root != NULL) {
+            stack[top++] = root;
+            root = root->left;
+        }
+
+        root = stack[--top];
+        if (root->right == NULL || root->right == pre) {
+            // 右子树为空或者已经访问完了，可以访问这个节点了
+            res[(*returnSize)++] = root->val;
+            pre = root;
+            root = NULL;
+        } else {
+            // 遍历右子树
+            // 先把当前节点再次压栈
+            stack[top++] = root;
+            root = root->right;
+        }
+    }
+
+    return res;
+}
+```
+
+
+##### 层序
+
+```c
+int **levelOrder(struct TreeNode *root, int *returnSize, int **returnColumnSizes) {
+    // 一层最多元素个数
+    const int size = 1002;
+    // 最多层数
+    const int leverMax = 2000;
+
+    // 返回的二维数组，第一维表示所在层，第二维表示该层的所有元素
+    int **res = (int **) malloc(sizeof(int *) * leverMax);
+    // 一维的维度（多少层）
+    *returnSize = 0;
+    // 每个二维的维度（每层多少元素）
+    *returnColumnSizes = (int *) malloc(sizeof(int) * leverMax);
+    if (root == NULL) return res;
+
+
+    // 循环队列
+    struct TreeNode *queue[size];
+    int lever = 0;
+    // 保存每层元素个数，下标就是所在层，从0开始
+    int *columnSize = (int *) calloc(leverMax, sizeof(int));
+    int front = 0, rear = 0;
+    queue[rear++] = root;
+
+    while (front != rear) {
+        // 当前层元素数
+        int count = (rear - front + size) % size;
+        res[lever] = (int *) malloc(sizeof(int) * count);
+        int temp = 0;
+        while (count-- > 0) {
+            root = queue[(front++) % size];
+            // 记录当前层的元素
+            res[lever][temp++] = root->val;
+            // 当前层元素总数加一
+            columnSize[lever]++;
+            if (root->left != NULL) queue[(rear++) % size] = root->left;
+            if (root->right != NULL) queue[(rear++) % size] = root->right;
+        }
+        // 加一层
+        lever++;
+    }
+
+    *returnSize = lever;
+    for (int i = 0; i < lever; ++i) 
+        (*returnColumnSizes)[i] = columnSize[i];
+    return res;
+}
+```
+
+#### 二叉树高频题
+
+##### [236. 二叉树的最近公共祖先](https://leetcode.cn/problems/lowest-common-ancestor-of-a-binary-tree/)
+
+```cpp
+using namespace std;
+
+struct TreeNode {
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+
+class Solution {
+public:
+    // 前提：节点的值唯一，p、q都在二叉树中
+    TreeNode *lowestCommonAncestor(TreeNode *root, TreeNode *p, TreeNode *q) {
+        // 如果 p 和 q 中有等于 root 的，那么它们的最近公共祖先即为 root（一个节点也可以是它自己的祖先）
+        if (root == nullptr || root == p || root == q) return root;
+
+        // 递归遍历左子树，只要在左子树中找到了 p 或 q，则先找到谁就返回谁
+        TreeNode *left = lowestCommonAncestor(root->left, p, q);
+        // 递归遍历右子树，只要在右子树中找到了 p 或 q，则先找到谁就返回谁
+        TreeNode *right = lowestCommonAncestor(root->right, p, q);
+
+        // 当 left 和 right 均不为空时，说明 p、q 节点分别在 root 异侧, 最近公共祖先即为 root
+        if (left != nullptr && right != nullptr) return root;
+        // 如果在一侧的子树中 p 和 q 都找不到，则 p 和 q 一定都在另一侧的子树中，另一侧中先遍历到的那个就是最近公共祖先
+        return left == nullptr ? right : left;
+    }
+};
+```
+
+#### 并查集
+
+1. 一开始每个元素都以自己为一个集合
+2. find(i)：查找 i 所在集合的代表元素，代表元素代表了 i 所在的集合
+3. isSameSet(a, b)：判断 a、b 是否在同一个集合里
+4. union(a, b)：将 a、b 所在的两个集合合并
+
+##### [P3367 【模板】并查集](https://www.luogu.com.cn/problem/P3367)
+
+```cpp
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+int len;
+// father[i] 为 i 所在集合的代表元素
+vector<int> father;
+
+void build() {
+    father.resize(len);
+    // 初始状态以自己为集合
+    for (int i = 0; i < len; ++i)
+        father[i] = i;
+}
+
+int find(int x) {
+    // 路径压缩
+    if (x != father[x])
+        father[x] = find(father[x]);
+    return father[x];
+}
+
+bool isSameSet(int a, int b) {
+    return find(a) == find(b);
+}
+
+void un1on(int a, int b) {
+    // a 所在集合并入 b 所在集合
+    father[find(a)] = find(b);
+}
+
+int main() {
+    int N, M;
+    cin >> N >> M;
+    len = N + 1;
+
+    build();
+
+    for (int i = 0, opt, a, b; i < M; ++i) {
+        cin >> opt >> a >> b;
+        if (opt == 2) {
+            if (isSameSet(a, b)) {
+                cout << "Y" << endl;
+            } else {
+                cout << "N" << endl;
+            }
+        } else {
+            un1on(a, b);
+        }
+    }
+}
+```
+
+### 图
+
+#### 建图
+
+##### 邻接矩阵
+
+```cpp
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+// 点的最大数量
+int MAX_N = 11;
+
+// 邻接矩阵方式建图
+vector<vector<int>> graph(MAX_N, vector<int>(MAX_N));
+
+// 初始化，下标从 1 开始
+void build(int n) {
+    for (int i = 1; i <= n; ++i)
+        for (int j = 1; j <= n; ++j)
+            graph[i][j] = 0;
+}
+
+// 有向图建图
+void directedGraph(vector<vector<int>> &edges) {
+    for (const auto &edge: edges)
+        graph[edge[0]][edge[1]] = edge[2];
+}
+
+// 无向图建图
+void undirectedGraph(vector<vector<int>> &edges) {
+    for (const auto &edge: edges) {
+        graph[edge[0]][edge[1]] = edge[2];
+        graph[edge[1]][edge[0]] = edge[2];
+    }
+}
+
+void traversal(int n) {
+    for (int i = 1; i <= n; ++i) {
+        for (int j = 1; j <= n; ++j)
+            cout << graph[i][j] << " ";
+        cout << endl;
+    }
+}
+
+int main() {
+    int n1 = 4;
+    vector<vector<int>> edges1 = { {1, 3, 6},
+                                  {4, 3, 4},
+                                  {2, 4, 2},
+                                  {1, 2, 7},
+                                  {2, 3, 5},
+                                  {3, 1, 1}};
+    build(n1);
+    directedGraph(edges1);
+    traversal(n1);
+    cout << endl;
+    int n2 = 5;
+    vector<vector<int>> edges2 = { {3, 5, 4},
+                                  {4, 1, 1},
+                                  {3, 4, 2},
+                                  {5, 2, 4},
+                                  {2, 3, 7},
+                                  {1, 5, 5},
+                                  {4, 2, 6}};
+    build(n2);
+    undirectedGraph(edges2);
+    traversal(n2);
+}
+```
+
+##### 邻接表
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <forward_list>
+
+using namespace std;
+
+// 点的最大数量
+int MAX_N = 11;
+
+// 邻接表方式建图
+// 无权
+// vector<forward_list<int>> graph(MAX_N);
+// 带权
+vector<forward_list<pair<int, int>>> graph(MAX_N);
+
+// 初始化，下标从 1 开始
+void build(int n) {
+    for (int i = 0; i <= n; ++i)
+        graph[i].clear();
+}
+
+// 有向图建图
+void directedGraph(vector<vector<int>> &edges) {
+    for (const auto &edge: edges) {
+        // edge[0]: u edge[1]: v, u->v
+        // edge[2] 为权重
+        // forward_list 只能头插，使用 list 可以尾插
+        graph[edge[0]].emplace_front(make_pair(edge[1], edge[2]));
+    }
+}
+
+// 无向图建图
+void undirectedGraph(vector<vector<int>> &edges) {
+    for (const auto &edge: edges) {
+        graph[edge[0]].emplace_front(make_pair(edge[1], edge[2]));
+        graph[edge[1]].emplace_front(make_pair(edge[0], edge[2]));
+    }
+}
+
+void traversal(int n) {
+    for (int i = 1; i <= n; ++i) {
+        cout << i << "(邻居、边权): ";
+        auto it = begin(graph[i]);
+        while (it != end(graph[i])) {
+            cout << "(" << (*it).first << ", " << (*it).second << ")";
+            it++;
+        }
+        cout << endl;
+    }
+}
+
+int main() {
+    int n1 = 4;
+    vector<vector<int>> edges1 = { {1, 3, 6},
+                                  {4, 3, 4},
+                                  {2, 4, 2},
+                                  {1, 2, 7},
+                                  {2, 3, 5},
+                                  {3, 1, 1}};
+    build(n1);
+    directedGraph(edges1);
+    traversal(n1);
+    cout << endl;
+    int n2 = 5;
+    vector<vector<int>> edges2 = { {3, 5, 4},
+                                  {4, 1, 1},
+                                  {3, 4, 2},
+                                  {5, 2, 4},
+                                  {2, 3, 7},
+                                  {1, 5, 5},
+                                  {4, 2, 6}};
+    build(n2);
+    undirectedGraph(edges2);
+    traversal(n2);
+}
+```
+
+| 特性              | 邻接矩阵            | 邻接表（STL）             |
+| ----------------- | ------------------- | ------------------------- |
+| **存储结构**      | 二维数组            | 向量数组（vector + list） |
+| **空间复杂度**    | O(n²)               | O(n + m)                  |
+| **适合稠密/稀疏** | 稠密图              | 稀疏图                    |
+| **建图复杂度**    | O(m)                | O(m)                      |
+| **边权处理**      | 简单                | 简单                      |
+| **查边是否存在**  | O(1)                | O(k)，k为出边数           |
+| **遍历效率**      | O(n)                | O(出边数)                 |
+| **插入边**        | O(1)                | O(1)（vector push_back）  |
+| **删除边**        | O(1)                | O(k)                      |
+| **适合算法**      | Floyd，Prim（稠密） | Dijkstra，BFS，DFS        |
+| **可读性**        | 高                  | 高                        |
+| **性能**          | 差（空间浪费）      | 一般                      |
+
+#### 图的遍历
+
+##### DFS
+
+- 递归版 DFS
+
+```cpp
+// 邻接表 graph，节点数 n
+vector<vector<int>> graph;
+vector<bool> visited(n, false);
+
+void dfs(int u) {
+    visited[u] = true;
+    // 访问 u...
+
+    for (int v : graph[u]) {
+        if (!visited[v]) {
+            dfs(v);
+        }
+    }
+}
+
+int main() {
+    // for (int i = 0; i < n; ++i)
+    //     if (!visited[i]) dfs(i);
+}
+```
+
+- 非递归（栈） DFS
+
+```cpp
+stack<int> st;
+vector<bool> visited(n, false);
+
+void dfs(int start) {
+    st.push(start);
+
+    while (!st.empty()) {
+        int u = st.top(); 
+        st.pop();
+
+        if (visited[u]) continue;
+        visited[u] = true;
+        // 访问 u...
+
+        // 为保证与递归顺序一致，倒序压栈
+        for (int i = graph[u].size() - 1; i >= 0; --i) {
+            int v = graph[u][i];
+            if (!visited[v]) st.push(v);
+        }
+    }
+}
+```
+
+##### BFS
+
+```cpp
+queue<int> q;
+vector<bool> visited(n, false);
+
+void bfs(int start) {
+    q.push(start);
+    visited[start] = true;
+
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        // 访问 u...
+
+        for (int v : graph[u]) {
+            if (!visited[v]) {
+                visited[v] = true;
+                q.push(v);
+            }
+        }
+    }
+}
+```
+
+#### 拓扑排序
+
+##### Kahn 算法（BFS / 入度法）伪代码
+
+1. 统计每个点的 **入度**
+2. 将入度为 0 的点入队
+3. 每次弹出队头，加入结果
+4. 删去它的边（邻接点入度 -1），若变为 0 则入队
+5. 直到队列空
+
+```cpp
+vector<vector<int>> graph;   // 邻接表
+vector<int> indegree(n, 0);  // 入度数组
+
+// 计算入度
+for (int u = 0; u < n; ++u)
+    for (int v : graph[u])
+        indegree[v]++;
+
+queue<int> q;
+
+// 初始入度为 0 的节点入队
+for (int i = 0; i < n; ++i)
+    if (indegree[i] == 0)
+        q.push(i);
+
+vector<int> topo;    // 存放拓扑序列
+
+while (!q.empty()) {
+    int u = q.front();
+    q.pop();
+    topo.push_back(u);
+
+    // 删除 u 的所有边
+    for (int v : graph[u]) {
+        indegree[v]--;
+        if (indegree[v] == 0)
+            q.push(v);
+    }
+}
+
+// 若 topo 数量 < n，则图有环
+```
+
+##### DFS 逆后序法伪代码
+
+DFS 的“后序遍历”逆序就是拓扑序。
+
+```cpp
+vector<vector<int>> graph;
+vector<bool> visited(n, false);
+vector<int> topo;  // 存储逆后序结果
+
+void dfs(int u) {
+    visited[u] = true;
+
+    for (int v : graph[u]) {
+        if (!visited[v])
+            dfs(v);
+    }
+
+    topo.push_back(u);   // 后序加入
+}
+
+int main() {
+    for (int i = 0; i < n; ++i)
+        if (!visited[i])
+            dfs(i);
+
+    reverse(topo.begin(), topo.end());  // 逆序即拓扑序
+}
+```
+
+##### [AB13 【模板】拓扑排序](https://www.nowcoder.com/practice/88f7e156ca7d43a1a535f619cd3f495c?tpId=308&tqId=40470&ru=/exam/oj)
+
+```cpp
+#include <iostream>
+#include <vector>
+#include <queue>
+
+using namespace std;
+
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<pair<int, int>> edges(m);
+    for (int i = 0; i < m; ++i)
+        cin >> edges[i].first >> edges[i].second;
+
+    // 顶点编号从 1 开始
+    // 邻接矩阵
+    vector<vector<int>> graph(n + 1);
+    // 记录入度
+    vector<int> in_degree(n + 1, 0);
+    for (const auto &edge: edges) {
+        graph[edge.first].emplace_back(edge.second);
+        in_degree[edge.second]++;
+    }
+
+    // 存放入度为 0 的顶点
+    queue<int> q;
+    for (int i = 1; i <= n; ++i)
+        if (in_degree[i] == 0)
+            q.emplace(i);
+
+    vector<int> res(n);
+    int count = 0;
+    // 依次从图中取出入度为 0 的节点
+    while (!q.empty()) {
+        int node = q.front();
+        q.pop();
+        res[count++] = node;
+        // 遍历指向的顶点，将其入度减一
+        for (int i = 0; i < graph[node].size(); ++i) {
+            // 下个顶点
+            int next = graph[node][i];
+            in_degree[next]--;
+            if (in_degree[next] == 0) q.emplace(next);
+        }
+    }
+
+    if (count == n) {
+        for (int i = 0; i < n - 1; ++i)
+            cout << res[i] << " ";
+        cout << res[n - 1];
+    } else {
+        cout << -1;
+    }
+}
+```
+
+#### MST
+
+##### [P3366 【模板】最小生成树](https://www.luogu.com.cn/problem/P3366)
+
+- Kruskal 算法
+  1. 把所有的边，根据权值从小到大排序，从权值小的开始考虑
+  2. 如果连接当前的边不会形成环，就把当前边加入 MST，否则跳过
+  3. 考察所有的边后就能得到 MST
+- 其实就是每次找不会导致出现环的权值最小的边，依次加入到 MST
+- 时间复杂度：O(n+m) + O(m*logm)
+
+```c++
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <algorithm>
+
+using namespace std;
+
+// 并查集中存放的是点的编号
+vector<int> father;
+
+void build(int n) {
+    father.resize(n + 1);
+    // 顶点下标从 1 开始
+    for (int i = 1; i <= n; ++i)
+        father[i] = i;
+}
+
+int find(int i) {
+    if (i != father[i])
+        father[i] = find(father[i]);
+    return father[i];
+}
+
+bool isSameSet(int a, int b) {
+    return find(a) == find(b);
+}
+
+void un1on(int a, int b) {
+    int fa = find(a);
+    int fb = find(b);
+    if (fa == fb) return;
+    father[fa] = fb;
+}
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<vector<int>> edges(m);
+    for (int i = 0; i < m; ++i) {
+        edges[i].resize(3);
+        cin >> edges[i][0] >> edges[i][1] >> edges[i][2];
+    }
+
+    // 按照边的权重排序
+    sort(begin(edges), end(edges),
+         [](vector<int> &a, vector<int> &b) { return a[2] < b[2]; });
+
+    // 构建并查集
+    build(n);
+    // mst 的权重
+    int weight = 0;
+    // 已经加入 mst 的边数
+    int count = 0;
+    // 凑够 n - 1 条边就可以退出
+    for (int i = 0; i < m && count < n - 1; ++i) {
+        // 两个点在一个集合里，说明已经他俩之间已经有路径了，如果再把当前边加入 mst 就会出现环，所以跳过
+        if (isSameSet(edges[i][0], edges[i][1])) continue;
+        // 把两个顶点加入 mst
+        un1on(edges[i][0], edges[i][1]);
+        // 累加 mst 权重
+        weight += edges[i][2];
+        count++;
+    }
+
+    if (count == n - 1) {
+        cout << weight;
+    } else {
+        cout << "orz";
+    }
+}
+```
+
+- Prime 算法
+  1. 解锁的点的集合叫 set，解锁的边的集合叫 heap（小顶堆），初始状态都为空。
+  2. 从任意点开始，开始点加入 set，开始点的所有边加入到 heap
+  3. 从 heap 中弹出权值最小的边 e，查看边 e 去往的点 x
+     1. 如果 x 已经在 set 中，舍弃边 e，重复步骤 3
+     2. 如果 x 不在 set 中，边 e 属于 MST，把 x 加入 set，重复步骤 3
+  4. 当 heap 为空，MST 就得到了。
+- 其实就是两个集合，一个由组成 MST 的点构成的集合 A，一个为剩下元素构成的集合 B。每次从集合 B 中找到 集合 A 距离最短的点，加入到集合 A中。距离是指集合 B 中的一个点，到集合 A 中的某个点有边直接相连，且这个边的权值最小。
+- 时间复杂度：O(n+m) + O(m\*logm)
+
+```c++
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <algorithm>
+
+using namespace std;
+
+// 标记顶点是否已经加入 MST 的集合中
+vector<bool> visited;
+// 小顶堆，下标从 0 开始，pair<点的下标, 边的权值>
+vector<pair<int, int>> heap;
+int lenOfHeap;
+
+// 顶点下标从 1 开始
+void build(int n, int m) {
+    visited.resize(n + 1, false);
+    // 堆的最大容量就是边数的两倍，tmd，找了半天错才发现不是 m
+    heap.resize(m * 2);
+    // 堆的初始容量为 0
+    lenOfHeap = 0;
+}
+
+// curIndex 为要调整位置的元素的下标
+void adjustHeap(int curIndex) {
+    auto temp = heap[curIndex];
+    int leftChild = 2 * curIndex + 1;
+    while (leftChild <= (lenOfHeap - 1)) {
+        if (leftChild < (lenOfHeap - 1)
+            && heap[leftChild].second > heap[leftChild + 1].second)
+            leftChild++;
+        if (heap[leftChild].second >= temp.second) break;
+        heap[curIndex] = heap[leftChild];
+        curIndex = leftChild;
+        leftChild = curIndex * 2 + 1;
+    }
+    heap[curIndex] = temp;
+}
+
+void pushToHeap(pair<int, int> p) {
+    heap[lenOfHeap] = p;
+    int curIndex = lenOfHeap;
+    int parentIndex = (curIndex - 1) / 2;
+    lenOfHeap++;
+    while (parentIndex >= 0) {
+        if (heap[parentIndex].second <= p.second) break;
+        heap[curIndex] = heap[parentIndex];
+        curIndex = parentIndex;
+        if (curIndex == 0) break;
+        parentIndex = (curIndex - 1) / 2;
+    }
+    heap[curIndex] = p;
+}
+
+pair<int, int> getHeapTop() {
+    auto res = heap[0];
+    heap[0] = heap[lenOfHeap - 1];
+    lenOfHeap--;
+    adjustHeap(0);
+    return res;
+}
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<vector<int>> edges(m);
+    for (int i = 0; i < m; ++i) {
+        edges[i].resize(3);
+        cin >> edges[i][0] >> edges[i][1] >> edges[i][2];
+    }
+
+    // 建堆和 visited 数组
+    build(n, m);
+
+    // 邻接表存放带权值的无向图
+    vector<vector<pair<int, int>>> graph(n + 1);
+    for (const auto &item: edges) {
+        graph[item[0]].emplace_back(make_pair(item[1], item[2]));
+        graph[item[1]].emplace_back(make_pair(item[0], item[2]));
+    }
+
+    // 任意一点作为初始点加入集合
+    visited[1] = true;
+    // 把初始点的相关边都入堆
+    for (const auto &item: graph[1])
+        // 边的另一个点的下标和边的权值入堆
+        pushToHeap(make_pair(item.first, item.second));
+
+    // MST 的权值
+    int weight = 0;
+    // 已经加入 MST 的边数
+    int count = 0;
+    // 每次选出一个与 MST 集合距离最短的顶点加入集合
+    while (lenOfHeap != 0) {
+        // 堆顶就是到 MST 集合距离最短的
+        auto top = getHeapTop();
+        // 已经在 MST 集合中，就跳过
+        if (visited[top.first] == true) continue;
+        // 否则把这个点加入集合
+        visited[top.first] = true;
+        // 累加 MST 权值
+        weight += top.second;
+        count++;
+        // 再把与 top.first 相关的边入堆
+        for (const auto &item: graph[top.first])
+            pushToHeap(make_pair(item.first, item.second));
+    }
+
+    if (count == n - 1)
+        cout << weight;
+    else
+        cout << "orz";
+}
+```
+
+```c++
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <unordered_set>
+#include <algorithm>
+
+using namespace std;
+
+struct cmp {
+    bool operator()(pair<int, int> &p1, pair<int, int> &p2) {
+        return p1.second > p2.second;
+    }
+};
+
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<vector<int>> edges(m);
+    for (int i = 0; i < m; ++i) {
+        edges[i].resize(3);
+        cin >> edges[i][0] >> edges[i][1] >> edges[i][2];
+    }
+
+    // pair<点的下标, 边的权值>
+    priority_queue<pair<int, int>, vector<pair<int, int>>, cmp> heap;
+    // 标记顶点是否已经加入 MST 的集合中
+    unordered_set<int> st;
+
+    // 邻接表存放带权值的无向图
+    vector<vector<pair<int, int>>> graph(n + 1);
+    for (const auto &item: edges) {
+        graph[item[0]].emplace_back(make_pair(item[1], item[2]));
+        graph[item[1]].emplace_back(make_pair(item[0], item[2]));
+    }
+
+    // 任意一点作为初始点加入集合
+    st.emplace(1);
+    // 把初始点的相关边都入堆
+    for (const auto &item: graph[1])
+        // 边的另一个点的下标和边的权值入堆
+        heap.push(make_pair(item.first, item.second));
+
+    // MST 的权值
+    int weight = 0;
+    // 已经加入 MST 的边数
+    int count = 0;
+    // 每次选出一个与 MST 集合距离最短的顶点加入集合
+    while (!heap.empty()) {
+        // 堆顶就是到 MST 集合距离最短的
+        auto top = heap.top();
+        heap.pop();
+        // 已经在 MST 集合中，就跳过
+        if (st.find(top.first) != st.end()) continue;
+        // 否则把这个点加入集合
+        st.emplace(top.first);
+        // 累加 MST 权值
+        weight += top.second;
+        count++;
+        // 再把与 top.first 相关的边入堆
+        for (const auto &item: graph[top.first])
+            heap.push(make_pair(item.first, item.second));
+    }
+
+    if (count == n - 1)
+        cout << weight;
+    else
+        cout << "orz";
+}
+```
+
+- Prime 算法优化
+
+  1. 小顶堆里放（节点，到节点的花费也就是边的权值），根据到达节点的花费来组织小顶堆
+
+  2. 小顶堆弹出（u 节点，到达 u 节点的花费 y），y 累加到总的权值上，然后考察 u 出发的每一条边
+
+     假设，u 出发的边，去往 v 节点，权值 w
+
+     A. 如果 v 已经弹出过，也就是已经加入到 MST 集合里了（MST 集合存放构成 MST 的节点），忽略该边
+
+     B. 如果 v 还没进入过堆，就入堆，加入记录（v，w）
+
+     C. 如果 v 在堆里，且记录为（v，x）：
+
+     	a. 若 w < x，则记录改为（v，w），然后调整该记录在堆中的位置
+	
+     	b. 若 w >= x，忽略该边
+
+  3. 重复步骤 2，直到小顶堆清空
+
+- 其中该记录的操作需要给堆加一个反向索引表，通过节点 v，找到（v，x）在堆中的位置才能将其改成（v, w）
+
+- 这样堆的大小就跟节点的数量相关而不是和边的数量相关
+
+- 优化后为时间复杂度为 O(n+m) + O((m+n)\*logn)，非常适合节点少边多的情况
+
+```c++
+// todo 链式前向星 + 优化 Prime
+```
+
+#### A 星算法
+
+A 星和 Dijkstra 算法唯一区别在于堆中排序的依据。distance 数组仍然保存实际代价，预估代价只影响堆的弹出顺序。
+
+- Dijkstra 根据`源点到当前点的实际代价`进行排序。
+
+- A 星根据`源点到当前点的实际代价 + 当前点到终点的预估代价`进行排序
+
+预估函数要求：`当前点到终点的预估代价 <= 当前点到终点的实际代价`，越接近越快
+
+常用选择：曼哈顿距离、欧氏距离、对角线距离（行差值列差值绝对值的最大值）
+
+#### Floyd 算法
+
+Floyd 算法是一种用于解决所有节点对之间最短路径问题的算法。它通过动态规划的思想，逐步计算出所有节点对之间的最短路径。
+
+Floyd 算法使用一个二维数组 distance 来记录节点对之间的最短距离。初始时，distance\[i\]\[j\] 表示节点 i 到节点 j 的直接距离（如果存在边），否则为无穷大。算法通过三重循环不断更新 distance 数组，最终得到所有节点对之间的最短路径。
+
+Floyd 算法的核心思想是动态规划。外层循环控制中间节点 k，内层两个循环分别遍历起点 i 和终点 j。如果通过节点 k 可以使 i 到 j 的距离更短，则更新 distance\[i\]\[j\]。重复此过程，直到所有节点都被遍历过。
+
+diatance\[i\]\[j\] 表示 i 和 j 的最短距离，更新：`distance[i][j] = min(distance[i][j], distance[i][k] + distance[k][j])`
+
+- 时间复杂度：`O(n^3)`，空间复杂度：`O(n^2)`，常数时间小，容易实现
+- 不适用于存在负环的图
+
+```c++
+int main() {
+    // n * n 的矩阵
+    int n = 10;
+    // 其实就是带权图的邻接矩阵
+    vector<vector<int>> distance(n, vector<int>(n, INT_MAX));
+    
+    // 省略 distance 根据给出的边进行初始化
+    
+    // i 经过 k 到达 j
+    for (int k = 0; k < n; ++k)
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j)
+                if (distance[i][k] != INT_MAX
+                    && distance[k][j] != INT_MAX
+                    && distance[i][j] > distance[i][k] + distance[k][j])
+                    distance[i][j] = distance[i][k] + distance[k][j];
+}
+```
+
+#### 普通堆实现的 Dijkstra 算法
+
+- 时间复杂度为 `O(m * logm)`，m 为边数
+- Dijkstra 算法不能处理边带有负权的情况
+
+Dijkstra 算法是一种用于解决带权图最短路径问题的算法。它通过贪心策略逐步找到从源节点到其他节点的最短路径。
+
+Dijkstra 算法维护一个==距离数组==，用于记录从源节点到其他节点的最短距离。算法从源节点开始，依次找出距离源节点最近的未访问节点，并更新其邻居节点的距离。重复此过程，直到所有节点都被访问过。
+
+Dijkstra 算法可以使用==小根堆==来实现。首先将源节点的距离设为 0，并将其加入优先队列。然后循环执行以下步骤：从小根堆中取出距离最小的节点，遍历其邻居节点，如果通过该节点到达邻居节点的距离更短，则更新邻居节点的距离，并将其加入小根堆。当小根堆为空时，算法结束。
+
+1. `distance[i]` 表示从源点到 i 点的最短距离，`visited[i]` 表示 i 节点是否从小根堆弹出过
+
+2. 准备好小根堆，`小根堆`存放记录：`（x 点，源点到 x 的距离）`，小根堆根据距离排序
+
+3. 令 distance[源点] = 0，（源点，0）入堆
+
+4. 从小根堆弹出（u 点，源点到 u 的距离）
+
+   a. 如果 visited[u] == true，啥也不做，重复步骤 4
+
+   b. 如果 visited[u] == false，令 visited[u] = true，u 就算弹出过了，
+
+   ​	然后考察 u 的每一条边，假设某条边去往 v 点，边权为 w
+
+   ​	1）如果 visited[v] == false 并且 distance[u] + w < distance[v]，
+
+   ​	令 distace[v] = distance[u] + w，**把（v，distance[u] + w)加入小根堆**
+
+   ​	2）处理完 u 的每条边后重复步骤 4
+
+5. 小根堆为空，过程结束。
+
+##### [P4779 【模板】单源最短路径（标准版）](https://www.luogu.com.cn/problem/P4779)
+
+```c++
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <queue>
+
+using namespace std;
+
+struct cmp {
+    bool operator()(pair<int, int> &p1, pair<int, int> &p2) {
+        return p1.second > p2.second;
+    }
+};
+
+int main() {
+    int n, m, s;
+    cin >> n >> m >> s;
+
+    vector<vector<pair<int, int>>> graph(n + 1);
+    // 建图
+    for (int i = 0, u, v, w; i < m; ++i) {
+        cin >> u >> v >> w;
+        graph[u].emplace_back(make_pair(v, w));
+    }
+
+    // 标记是否从堆中弹出过
+    vector<bool> visited(n + 1, false);
+    priority_queue<pair<int, int>, vector<pair<int, int>>, cmp> heap;
+    vector<int> distances(n + 1, 0x7fffffff);
+    // 源点入堆
+    heap.emplace(make_pair(s, 0));
+    distances[s] = 0;
+
+    while (!heap.empty()) {
+        auto top = heap.top();
+        heap.pop();
+        int u = top.first;
+        if (visited[u]) continue;
+        visited[u] = true;
+        for (const auto &item: graph[u]) {
+            int v = item.first;
+            int w = item.second;
+            if (visited[v]) continue;
+            if (distances[v] > distances[u] + w) {
+                distances[v] = distances[u] + w;
+                heap.emplace(make_pair(v, distances[v]));
+            }
+        }
+    }
+
+    for (int i = 1; i <= n; ++i)
+        cout << distances[i] << " ";
+}
+```
+
+### 最大公约数
+
+```cpp
+// 最大公约数，时间复杂度O（（logn）^3）
+int gcd(int a, int b) {
+    return b == 0 ? a : gcd(b, a % b);
+}
+
+// 最小公倍数
+int lcm(int a, int b) {
+    return a / gcd(a, b) * b;
+}
+```
+
