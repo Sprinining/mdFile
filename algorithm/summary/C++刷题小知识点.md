@@ -1,11 +1,6 @@
----
-title: C++刷题小知识点
-date: 2024-09-20 10:01:53 +0800
-categories: [algorithm, summary]
-tags: [Algorithm, Coding Tips]
-description: 
----
-## 数据结构定义
+## C++ 刷题小知识点
+
+### 数据结构定义
 
 ```c++
 struct ListNode {
@@ -34,11 +29,11 @@ struct TreeNode {
 };
 ```
 
-## sort() 自定义比较函数
+### sort() 自定义比较函数
 
 - 由于容器支持的迭代器类型必须为随机访问迭代器，sort() 只支持array、vector、deque 这 3 个容器。
 
-### 自定义排序方法
+#### 自定义排序方法
 
 - 缺点：定义的函数只能接受两个参数，就是比较的双方。无法根据 b 数组中元素的大小，来对 a 数组进行排序
 
@@ -58,7 +53,7 @@ int main() {
 }
 ```
 
-### lambda 表达式
+#### lambda 表达式
 
 结构：`[capture list](parameter list) ->return type {function body}`
 
@@ -109,13 +104,13 @@ int main() {
 }
 ```
 
-### 二维数组初始化
+#### 二维数组初始化
 
 ```c++
 vector<vector<int>> graph(10, vector<int>(10));
 ```
 
-## 随机数
+### 随机数
 
 #### rand()
 
@@ -168,7 +163,7 @@ int main() {
 }
 ```
 
-## 注意事项
+### 注意事项
 
 - 题目给的数据范围，是否要用 `long`，尤其是要取模运算的题目，中间结果要用 `long`
 - `resize(n, val)`：新增出来的位置才会设置成值 `val`

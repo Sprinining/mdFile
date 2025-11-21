@@ -1,10 +1,3 @@
----
-title: KMP
-date: 2024-10-19 10:30:44 +0800
-categories: [algorithm, summary]
-tags: [Algorithm, KMP]
-description: 
----
 ## KMP
 
 s1 字符串是否包含 s2 字符串，如果包含返回 s1 中包含 s2 的最左开头位置，不包含返回 -1

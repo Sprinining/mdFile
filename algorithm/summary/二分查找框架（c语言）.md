@@ -1,16 +1,9 @@
----
-title: 二分查找框架（c语言）
-date: 2024-01-11 12:27:30 +0800
-categories: [algorithm, summary]
-tags: [Algorithm, Algorithm Template, Binary Search]
-description: 
----
-# 二分法框架
+## 二分法框架
 
-- 区间`[left, size-1]`时，`while (left <= right)`终止条件必为`left = right + 1`
-- 但left和right一旦更新后，right右边必然大于或者大于等于target，left左边必然小于或小于等于target(其实就是因为经过了array[mid]与target比较的if分支)
+- 区间 `[left, size-1]` 时，`while (left <= right)` 终止条件必为 `left = right + 1`
+- 但 left 和 right 一旦更新后，right 右边必然大于或者大于等于 target，left 左边必然小于或小于等于 target (其实就是因为经过了 array[mid] 与 target 比较的 if 分支)
 
-## 区间[left, size-1]
+### 区间 [left, size-1]
 
 ```c
 int binarySearch(int *array, int size, int target) {
@@ -32,7 +25,7 @@ int binarySearch(int *array, int size, int target) {
 }
 ```
 
-## 大于等于（找应该插入的位置，左边界）
+### 大于等于（找应该插入的位置，左边界）
 
 ```c
 // 大于等于（找应该插入的位置，左边界）
@@ -52,7 +45,7 @@ int binarySearch1(int *array, int size, int target) {
 }
 ```
 
-## 大于
+### 大于
 
 ```c
 // 大于
@@ -72,7 +65,7 @@ int binarySearch2(int *array, int size, int target) {
 }
 ```
 
-## 小于等于(右边界)
+### 小于等于(右边界)
 
 ```c
 // 小于等于(右边界)
@@ -91,7 +84,7 @@ int binarySearch3(int *array, int size, int target) {
 }
 ```
 
-## 小于
+### 小于
 
 ```c
 // 小于
